@@ -27,6 +27,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+COMPANY_NAME = 'Run for Everyone'
+SLOGAN = 'Бег как смысл жизни'
+CONTACTS = 'г.Дальний, ул.Беговая 7, д.99'
 
 # Application definition
 
