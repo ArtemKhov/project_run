@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -14,8 +13,3 @@ urlpatterns = [
     path('api/company_details/', company_details),
     path('', include(router.urls)),
 ]
-
-if settings.ENABLE_DEBUG_TOOLBAR:
-    urlpatterns += [
-        path("__debug__/", include("debug_toolbar.urls")),
-    ]
