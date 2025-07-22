@@ -29,6 +29,13 @@ class RunViewSet(viewsets.ModelViewSet):
 class StartRunAPIView(APIView):
     def post(self, request, run_id):
         run = get_object_or_404(Run, id=run_id)
+
+        if run.status == Run.Status.IN_PROGRESS:
+            return Response({'error': 'Забег уже начат'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if run.status == Run.Status.FINISHED:
+            return Response({'error': 'Забег уже был завершен'}, status=status.HTTP_400_BAD_REQUEST)
+
         run.status = Run.Status.IN_PROGRESS
         run.save()
         return Response({'status: Забег начат'}, status=status.HTTP_200_OK)
@@ -36,6 +43,18 @@ class StartRunAPIView(APIView):
 class StopRunAPIView(APIView):
     def post(self, request, run_id):
         run = get_object_or_404(Run, id=run_id)
+
+        if run.status == Run.Status.FINISHED:
+            return Response(
+                {'error': 'Забег уже завершен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if run.status == Run.Status.INIT:
+            return Response(
+                {'error': 'Нельзя завершить не начатый забег'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         run.status = Run.Status.FINISHED
         run.save()
         return Response({'status: Забег закончен'}, status=status.HTTP_200_OK)
