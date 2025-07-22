@@ -6,6 +6,8 @@ from app_run.views import company_details, RunViewSet, RunnerViewSet
 
 router = DefaultRouter()
 router.register('api/runs', RunViewSet)
+router.register('api/runs/<int:run_id>/start', RunViewSet)
+router.register('api/runs/<int:run_id>/stop', RunViewSet)
 router.register('api/users', RunnerViewSet)
 
 urlpatterns = [
