@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
 from rest_framework import viewsets
+from rest_framework.views import APIView
 
 from .models import Run
 from .serializers import RunSerializer, RunnerSerializer
@@ -22,6 +23,17 @@ def company_details(request):
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.select_related('athlete').all()
     serializer_class = RunSerializer
+
+
+class StartRunViewSet(APIView):
+
+    def post(self, request, run_id):
+        pass
+
+class StopRunViewSet(APIView):
+
+    def post(self, request, run_id):
+        pass
 
 
 class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
