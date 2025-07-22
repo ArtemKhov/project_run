@@ -38,7 +38,7 @@ class StartRunAPIView(APIView):
 
         run.status = Run.Status.IN_PROGRESS
         run.save()
-        return Response({'status: Забег начат'}, status=status.HTTP_200_OK)
+        return Response({'status': 'Забег начат'}, status=status.HTTP_200_OK)
 
 class StopRunAPIView(APIView):
     def post(self, request, run_id):
@@ -57,7 +57,7 @@ class StopRunAPIView(APIView):
 
         run.status = Run.Status.FINISHED
         run.save()
-        return Response({'status: Забег закончен'}, status=status.HTTP_200_OK)
+        return Response({'status': 'Забег закончен'}, status=status.HTTP_200_OK)
 
 
 class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
