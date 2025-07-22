@@ -1,9 +1,10 @@
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
 from .models import Run
@@ -25,15 +26,19 @@ class RunViewSet(viewsets.ModelViewSet):
     serializer_class = RunSerializer
 
 
-class StartRunViewSet(APIView):
-
+class StartRunAPIView(APIView):
     def post(self, request, run_id):
-        pass
+        run = get_object_or_404(Run, id=run_id)
+        run.status = Run.Status.IN_PROGRESS
+        run.save()
+        return Response({'status: Забег начат'}, status=status.HTTP_200_OK)
 
-class StopRunViewSet(APIView):
-
+class StopRunAPIView(APIView):
     def post(self, request, run_id):
-        pass
+        run = get_object_or_404(Run, id=run_id)
+        run.status = Run.Status.FINISHED
+        run.save()
+        return Response({'status: Забег закончен'}, status=status.HTTP_200_OK)
 
 
 class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
