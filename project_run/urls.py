@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from app_run.views import company_details, RunViewSet, RunnerViewSet
+from app_run.views import company_details, RunViewSet, RunnerViewSet, StartRunViewSet, StopRunViewSet
 
 router = DefaultRouter()
 router.register('api/runs', RunViewSet)
