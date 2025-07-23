@@ -28,6 +28,11 @@ class RunsPagination(PageNumberPagination):
     max_page_size = 50
 
 
+class RunnersPagination(PageNumberPagination):
+    page_size_query_param = 'size'
+    max_page_size = 50
+
+
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.select_related('athlete').all()
     serializer_class = RunSerializer
@@ -75,6 +80,7 @@ class StopRunAPIView(APIView):
 class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.filter(is_superuser=False)
     serializer_class = RunnerSerializer
+    pagination_class = RunnersPagination
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['first_name', 'last_name']
     ordering_fields = ['date_joined']
