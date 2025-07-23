@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter
 from rest_framework.response import Response
@@ -24,6 +25,8 @@ def company_details(request):
 class RunViewSet(viewsets.ModelViewSet):
     queryset = Run.objects.select_related('athlete').all()
     serializer_class = RunSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['status', 'athlete']
 
 
 class StartRunAPIView(APIView):
@@ -39,6 +42,7 @@ class StartRunAPIView(APIView):
         run.status = Run.Status.IN_PROGRESS
         run.save()
         return Response({'status': 'Забег начат'}, status=status.HTTP_200_OK)
+
 
 class StopRunAPIView(APIView):
     def post(self, request, run_id):
