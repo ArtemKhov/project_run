@@ -20,7 +20,7 @@ class RunSerializer(serializers.ModelSerializer):
 class AthleteInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = AthleteInfo
-        fields = '__all__'
+        fields = ['user_id', 'goals', 'weight']
 
 
 class RunnerSerializer(serializers.ModelSerializer):
