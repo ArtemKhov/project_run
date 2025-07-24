@@ -116,7 +116,7 @@ class AthleteInfoAPIView(APIView):
         weight = request.data.get('weight')
         goals = request.data.get('goals', '')
         if weight is not None:
-            if not (0 < weight < 900):
+            if not (0 < int(weight) < 900):
                 return Response({'error': 'Вес должен быть в пределах от 0 до 900'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
