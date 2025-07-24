@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run
-from .serializers import RunSerializer, RunnerSerializer
+from .models import Run, AthleteInfo
+from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer
 
 
 @api_view(['GET'])
@@ -96,3 +96,36 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(is_staff=False)
 
         return qs
+
+
+class AthleteInfoAPIView(APIView):
+    def get(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        athlete_info, created = AthleteInfo.objects.get_or_create(
+            user=user,
+            defaults={
+                'goals': '',
+                'weight': None,
+            }
+        )
+        serializer = AthleteInfoSerializer(athlete_info)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, user_id):
+        user = get_object_or_404(User, pk=user_id)
+        weight = request.data.get('weight')
+        goals = request.data.get('goals', '')
+        if weight is not None:
+            if not (0 < weight < 900):
+                return Response({'error': 'Вес должен быть в пределах от 0 до 900'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        athlete_info, created = AthleteInfo.objects.update_or_create(
+            user=user,
+            defaults={
+                'goals': goals,
+                'weight': weight,
+            }
+        )
+        serializer = AthleteInfoSerializer(athlete_info)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
