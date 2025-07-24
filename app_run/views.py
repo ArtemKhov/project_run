@@ -116,11 +116,13 @@ class AthleteInfoAPIView(APIView):
         weight = request.data.get('weight')
         goals = request.data.get('goals', '')
         if weight is not None:
-            if not isinstance(weight, int):
-                return Response({'error': 'Вес должен быть целым число от 0 до 900 кг.'},
-                                status=status.HTTP_400_BAD_REQUEST)
-            if not (0 < int(weight) < 900):
-                return Response({'error': 'Вес должен быть в пределах от 0 до 900'},
+            try:
+                weight = int(weight)
+                if not (0 < weight < 900):
+                    return Response({'error': 'Вес должен быть в пределах от 0 до 900'},
+                                    status=status.HTTP_400_BAD_REQUEST)
+            except (TypeError, ValueError):
+                return Response({'error': 'Вес должен быть целым числом от 0 до 900 кг.'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         athlete_info, created = AthleteInfo.objects.update_or_create(
