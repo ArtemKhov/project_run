@@ -25,8 +25,8 @@ class RunnerSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'date_joined', 'username', 'last_name', 'first_name', 'type', 'runs_finished']
 
-    def get_type(self, obj):
-        return "coach" if obj.is_staff else "athlete"
+    def get_type(self, user):
+        return "coach" if user.is_staff else "athlete"
 
-    def get_runs_finished(self, obj):
-        return obj.runs.filter(status='finished').count()
+    def get_runs_finished(self, user):
+        return user.runs.filter(status='finished').count()
