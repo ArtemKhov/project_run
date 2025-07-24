@@ -101,7 +101,7 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
 class AthleteInfoAPIView(APIView):
     def get(self, request, user_id):
         user = get_object_or_404(User, pk=user_id)
-        athlete_info, created = AthleteInfo.objects.get_or_create(
+        athlete_info, created = AthleteInfo.objects.select_related('user').get_or_create(
             user=user,
             defaults={
                 'goals': '',
@@ -125,7 +125,7 @@ class AthleteInfoAPIView(APIView):
                 return Response({'error': 'Вес должен быть целым числом от 0 до 900 кг.'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        athlete_info, created = AthleteInfo.objects.update_or_create(
+        athlete_info, created = AthleteInfo.objects.select_related('user').update_or_create(
             user=user,
             defaults={
                 'goals': goals,
