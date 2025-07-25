@@ -23,7 +23,7 @@ class Challenge(models.Model):
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challenge')
 
 class Position(models.Model):
-    run = models.OneToOneField(Run, on_delete=models.CASCADE, primary_key=True, related_name='position')
+    run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name='position')
     latitude = models.DecimalField(max_digits=10, decimal_places=4)
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
 
