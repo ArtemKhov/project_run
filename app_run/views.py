@@ -171,6 +171,6 @@ class PositionViewSet(viewsets.ModelViewSet):
         run = self.request.query_params.get('run')
 
         if run:
-            qs = qs.filter(run__id=run)
+            qs = qs.filter(run_id=run)
 
         return qs

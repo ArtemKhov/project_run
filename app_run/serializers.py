@@ -48,7 +48,6 @@ class PositionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Position
         fields = ['id', 'run', 'latitude', 'longitude']
-        read_only_fields = ['id']
 
     def validate_run(self, run):
         if run.status != Run.Status.IN_PROGRESS:
