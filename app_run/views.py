@@ -186,3 +186,27 @@ class PositionViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         serializer = self.get_serializer(queryset, many=True)
         return JsonResponse({'results': serializer.data})
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return JsonResponse(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return JsonResponse(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return JsonResponse(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return JsonResponse({'detail': 'Позиция удалена'}, status=status.HTTP_204_NO_CONTENT)
