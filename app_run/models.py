@@ -18,3 +18,7 @@ class AthleteInfo(models.Model):
     goals = models.TextField(blank=True, default='')
     weight = models.IntegerField(blank=True, null=True)
 
+class Challenge(models.Model):
+    full_name = models.CharField(max_length=255)
+    athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challenge')
+
