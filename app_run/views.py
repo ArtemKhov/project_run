@@ -10,8 +10,9 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run, AthleteInfo, Challenge
-from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer
+from .models import Run, AthleteInfo, Challenge, Position
+from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
+    PositionSerializer
 
 
 @api_view(['GET'])
@@ -159,3 +160,17 @@ class ChallengeAPIView(ListAPIView):
             queryset = queryset.filter(athlete__id=athlete_id)
 
         return queryset
+
+
+class PositionViewSet(viewsets.ModelViewSet):
+    queryset = Position.objects.all()
+    serializer_class = PositionSerializer
+
+    def get_queryset(self):
+        qs = self.queryset
+        run = self.request.query_params.get('run')
+
+        if run:
+            qs = qs.filter(run__id=run)
+
+        return qs
