@@ -4,13 +4,14 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run, AthleteInfo
-from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer
+from .models import Run, AthleteInfo, Challenge
+from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer
 
 
 @api_view(['GET'])
@@ -66,6 +67,7 @@ class StopRunAPIView(APIView):
                 {'error': 'Забег уже завершен'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         if run.status == Run.Status.INIT:
             return Response(
                 {'error': 'Нельзя завершить не начатый забег'},
@@ -74,6 +76,16 @@ class StopRunAPIView(APIView):
 
         run.status = Run.Status.FINISHED
         run.save()
+
+        finished_runs_count = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).count()
+
+        if finished_runs_count >= 1:
+            Challenge.objects.get_or_create(
+                full_name="Сделай 10 Забегов!",
+                athlete=run.athlete,
+                defaults={'full_name': "Сделай 10 Забегов!"}
+            )
+
         return Response({'status': 'Забег закончен'}, status=status.HTTP_200_OK)
 
 
@@ -134,3 +146,16 @@ class AthleteInfoAPIView(APIView):
         )
         serializer = AthleteInfoSerializer(athlete_info)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ChallengeAPIView(ListAPIView):
+    serializer_class = ChallengeSerializer
+
+    def get_queryset(self):
+        queryset = Challenge.objects.all().select_related('athlete')
+        athlete_id = self.request.query_params.get('athlete')
+
+        if athlete_id:
+            queryset = queryset.filter(athlete__id=athlete_id)
+
+        return queryset
