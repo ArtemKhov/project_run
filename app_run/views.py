@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from geopy.distance import geodesic
 from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.generics import ListAPIView
@@ -76,7 +77,19 @@ class StopRunAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        positions = run.position.all().order_by('id')
+
+        total_distance = 0.0
+        prev_point = None
+        for position in positions:
+            current_point = (float(position.latitude), float(position.longitude))
+            if prev_point:
+                segment_distance = geodesic(prev_point, current_point).kilometers
+                total_distance += segment_distance
+            prev_point = current_point
+
         run.status = Run.Status.FINISHED
+        run.distance = round(total_distance, 3)
         run.save()
 
         finished_runs_count = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).count()
@@ -88,7 +101,8 @@ class StopRunAPIView(APIView):
                 defaults={'full_name': "Сделай 10 Забегов!"}
             )
 
-        return Response({'status': 'Забег закончен'}, status=status.HTTP_200_OK)
+        return Response({'status': 'Забег закончен', 'distance': run.distance},
+                        status=status.HTTP_200_OK)
 
 
 class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
