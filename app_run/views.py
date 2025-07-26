@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -99,6 +100,14 @@ class StopRunAPIView(APIView):
                 full_name="Сделай 10 Забегов!",
                 athlete=run.athlete,
                 defaults={'full_name': "Сделай 10 Забегов!"}
+            )
+
+        total_km = Run.objects.aggregate(total_distance=Sum('distance'))['total_distance'] or 0
+        if total_km >= 50:
+            Challenge.objects.get_or_create(
+                full_name="Пробеги 50 километров!",
+                athlete=run.athlete,
+                defaults={'full_name': "Пробеги 50 километров!"}
             )
 
         return Response({'status': 'Забег закончен', 'distance': run.distance},
