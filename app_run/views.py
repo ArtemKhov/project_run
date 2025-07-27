@@ -81,17 +81,10 @@ def upload_file_view(request):
         for serializer in valid_items:
             try:
                 serializer.save()
-                created_count += 1
             except Exception:
                 invalid_rows.append(serializer.initial_data)
 
-        response_data = {
-            "message": f"Файл обработан",
-            "created_count": created_count,
-            "invalid_rows": invalid_rows
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
+        return Response(invalid_rows, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": f"Произошла ошибка во время обработки файла: {str(e)}"},
