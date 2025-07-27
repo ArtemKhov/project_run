@@ -53,16 +53,17 @@ def upload_file_view(request):
                 continue
 
             try:
-                raw_url = row[5] if len(row) > 5 else None
-                cleaned_url = raw_url.strip().rstrip(';') if raw_url else None
+                row_list = list(row)
+                if len(row_list) > 5 and isinstance(row_list[5], str):
+                    row_list[5] = row_list[5].rstrip(';')
 
                 item_data = {
                     'name': row[0],
-                    'uid': str(row[1]) if row[1] is not None else None,
+                    'uid': str(row_list[1]) if row_list[1] is not None else None,
                     'value': row[2],
                     'latitude': row[3],
                     'longitude': row[4],
-                    'picture': cleaned_url
+                    'picture': row_list[5] if len(row_list) > 5 else None
                 }
             except IndexError:
                 invalid_rows.append(list(row))
@@ -75,14 +76,18 @@ def upload_file_view(request):
             else:
                 invalid_rows.append(list(row))
 
-        created_items = []
+
+        created_count = 0
         for serializer in valid_items:
-            item_instance = serializer.save()
-            created_items.append(item_instance)
+            try:
+                serializer.save()
+                created_count += 1
+            except Exception:
+                invalid_rows.append(serializer.initial_data)
 
         response_data = {
             "message": f"Файл обработан",
-            "created_count": len(created_items),
+            "created_count": created_count,
             "invalid_rows": invalid_rows
         }
 
