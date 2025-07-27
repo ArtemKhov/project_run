@@ -79,13 +79,11 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
             'picture': {'required': False, 'allow_null': True, 'allow_blank': True}
         }
 
-    def validate_uid(self, value):
-        """Проверяет, является ли строка валидным UUID"""
-        try:
-            uuid.UUID(str(value))
-            return value
-        except ValueError:
-            raise serializers.ValidationError("Передан UUID неподходящий под формат uid")
+    def validate_uid(self, uid):
+        """Проверяет, что UID передан и не пустой"""
+        if not uid:
+            raise serializers.ValidationError("UID не может быть пустым")
+        return uid
 
     def validate_value(self, value):
         """Проверяет, что переданное значение - это число"""
@@ -124,7 +122,6 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        validated_data['uid'] = uuid.UUID(str(validated_data['uid']))
         return CollectibleItem.objects.create(**validated_data)
 
 
