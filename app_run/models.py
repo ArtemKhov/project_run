@@ -30,7 +30,7 @@ class Position(models.Model):
 
 class CollectibleItem(models.Model):
     name = models.CharField(max_length=255)
-    uid = models.UUIDField()
+    uid = models.CharField(max_length=255, unique=True)
     value = models.IntegerField(default=0)
     latitude = models.DecimalField(max_digits=10, decimal_places=4)
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
