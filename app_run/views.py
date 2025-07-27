@@ -53,13 +53,16 @@ def upload_file_view(request):
                 continue
 
             try:
+                raw_url = row[5] if len(row) > 5 else None
+                cleaned_url = raw_url.strip().rstrip(';') if raw_url else None
+
                 item_data = {
                     'name': row[0],
                     'uid': str(row[1]) if row[1] is not None else None,
                     'value': row[2],
                     'latitude': row[3],
                     'longitude': row[4],
-                    'picture': row[5] if row[5] else None
+                    'picture': cleaned_url
                 }
             except IndexError:
                 invalid_rows.append(list(row))
@@ -83,7 +86,7 @@ def upload_file_view(request):
             "invalid_rows": invalid_rows
         }
 
-        return Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
         return Response({"error": f"Произошла ошибка во время обработки файла: {str(e)}"},
