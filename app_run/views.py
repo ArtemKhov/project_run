@@ -83,7 +83,7 @@ def upload_file_view(request):
             "invalid_rows": invalid_rows
         }
 
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": f"Произошла ошибка во время обработки файла: {str(e)}"},
