@@ -1,3 +1,6 @@
+from io import BytesIO
+
+import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Sum
@@ -13,9 +16,9 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run, AthleteInfo, Challenge, Position
+from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer
+    PositionSerializer, CollectibleItemSerializer
 
 
 @api_view(['GET'])
@@ -27,6 +30,64 @@ def company_details(request):
     }
     return Response(details)
 
+
+@api_view(['POST'])
+def upload_file_view(request):
+    file = request.FILES.get('file')
+    if not file:
+        return Response({"error": "Файл не был передан"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not file.name.endswith('.xlsx'):
+        return Response({"error": "Файл должен быть в формате Excel (.xlsx)."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        excel_file = BytesIO(file.read())
+        wb = openpyxl.load_workbook(excel_file, data_only=True)
+        worksheet = wb.active
+
+        valid_items = []
+        invalid_rows = []
+
+        for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True), start=2):
+            if not any(cell is not None for cell in row):
+                continue
+
+            try:
+                item_data = {
+                    'name': row[0],
+                    'uid': str(row[1]) if row[1] is not None else None,
+                    'value': row[2],
+                    'latitude': row[3],
+                    'longitude': row[4],
+                    'picture': row[5] if row[5] else None
+                }
+            except IndexError:
+                invalid_rows.append(list(row))
+                continue
+
+            serializer = CollectibleItemSerializer(data=item_data)
+
+            if serializer.is_valid():
+                valid_items.append(serializer)
+            else:
+                invalid_rows.append(list(row))
+
+        created_items = []
+        for serializer in valid_items:
+            item_instance = serializer.save()
+            created_items.append(item_instance)
+
+        response_data = {
+            "message": f"Файл обработан",
+            "created_count": len(created_items),
+            "invalid_rows": invalid_rows
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({"error": f"Произошла ошибка во время обработки файла: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class RunsPagination(PageNumberPagination):
     page_size_query_param = 'size'
@@ -198,3 +259,8 @@ class PositionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(run_id=run)
 
         return qs
+
+
+class CollectibleItemListView(ListAPIView):
+    queryset = CollectibleItem.objects.all()
+    serializer_class = CollectibleItemSerializer

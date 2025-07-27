@@ -1,6 +1,10 @@
+import uuid
+
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Run, AthleteInfo, Challenge, Position
+from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -63,6 +67,65 @@ class PositionSerializer(serializers.ModelSerializer):
         if not (-180.0 <= longitude <= 180.0):
             raise serializers.ValidationError("Долгота должна находиться в диапазоне [-180.0, 180.0] градусов.")
         return longitude
+
+
+class CollectibleItemSerializer(serializers.ModelSerializer):
+    uid = serializers.CharField()
+
+    class Meta:
+        model = CollectibleItem
+        fields = ['name', 'uid', 'value', 'latitude', 'longitude', 'picture']
+        extra_kwargs = {
+            'picture': {'required': False, 'allow_null': True, 'allow_blank': True}
+        }
+
+    def validate_uid(self, value):
+        """Проверяет, является ли строка валидным UUID"""
+        try:
+            uuid.UUID(str(value))
+            return value
+        except ValueError:
+            raise serializers.ValidationError("Передан UUID неподходящий под формат uid")
+
+    def validate_value(self, value):
+        """Проверяет, что переданное значение - это число"""
+        if not isinstance(value, int):
+            raise serializers.ValidationError("Ожидается число")
+        return value
+
+    def validate_latitude(self, latitude):
+        """Проверяет, что широта - это float число в в диапазоне [-90.0, 90.0]"""
+        try:
+            float(latitude)
+            if not (-90.0 <= latitude <= 90.0):
+                raise serializers.ValidationError("Широта должна находиться в диапазоне [-90.0, 90.0] градусов.")
+            return latitude
+        except (ValueError, TypeError):
+            raise serializers.ValidationError("Широта должна быть числом")
+
+    def validate_longitude(self, longitude):
+        """Проверяет, что долгота - это float число в в диапазоне [-180.0, 180.0]"""
+        try:
+            float(longitude)
+            if not (-180.0 <= longitude <= 180.0):
+                raise serializers.ValidationError("Долгота должна находиться в диапазоне [-180.0, 180.0] градусов.")
+            return longitude
+        except (ValueError, TypeError):
+            raise serializers.ValidationError("Долгота должна быть числом")
+
+    def validate_picture(self, value):
+        """Проверяет, что URL валиден (если он предоставлен)."""
+        if value:
+            validator = URLValidator()
+            try:
+                validator(value)
+            except DjangoValidationError:
+                raise serializers.ValidationError("Неверный URL формат")
+        return value
+
+    def create(self, validated_data):
+        validated_data['uid'] = uuid.UUID(str(validated_data['uid']))
+        return CollectibleItem.objects.create(**validated_data)
 
 
 
