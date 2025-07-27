@@ -23,8 +23,15 @@ class Challenge(models.Model):
     full_name = models.CharField(max_length=255)
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challenge')
 
-
 class Position(models.Model):
     run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name='position')
     latitude = models.DecimalField(max_digits=10, decimal_places=4)
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
+
+class CollectibleItem(models.Model):
+    name = models.CharField(max_length=255)
+    uid = models.UUIDField()
+    value = models.IntegerField(default=0)
+    latitude = models.DecimalField(max_digits=10, decimal_places=4)
+    longitude = models.DecimalField(max_digits=10, decimal_places=4)
+    picture = models.URLField(blank=True, null=True)
