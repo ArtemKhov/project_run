@@ -155,7 +155,6 @@ class StopRunAPIView(APIView):
         run.save()
 
         finished_runs_count = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).count()
-
         if finished_runs_count >= 10:
             Challenge.objects.get_or_create(
                 full_name="Сделай 10 Забегов!",
@@ -163,7 +162,7 @@ class StopRunAPIView(APIView):
                 defaults={'full_name': "Сделай 10 Забегов!"}
             )
 
-        total_km = Run.objects.aggregate(total_distance=Sum('distance'))['total_distance'] or 0
+        total_km = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).aggregate(total_distance=Sum('distance'))['total_distance'] or 0
         if total_km >= 50:
             Challenge.objects.get_or_create(
                 full_name="Пробеги 50 километров!",
