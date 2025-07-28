@@ -27,6 +27,7 @@ class Position(models.Model):
     run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name='position')
     latitude = models.DecimalField(max_digits=10, decimal_places=4)
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
+    date_time = models.DateTimeField(format='%Y-%m-%dT%H:%M:%S.%f')
 
 class CollectibleItem(models.Model):
     name = models.CharField(max_length=255)
