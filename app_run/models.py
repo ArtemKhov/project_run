@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from django.contrib.auth.models import User
 from django.db import models
 
@@ -13,7 +15,7 @@ class Run(models.Model):
     comment = models.TextField()
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.INIT)
     distance = models.FloatField(default=0.0)
-    run_time_seconds = models.IntegerField()
+    run_time_seconds = models.IntegerField(default=0)
 
 class AthleteInfo(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='athlete_info')
@@ -28,7 +30,7 @@ class Position(models.Model):
     run = models.ForeignKey(Run, on_delete=models.CASCADE, related_name='position')
     latitude = models.DecimalField(max_digits=10, decimal_places=4)
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
-    date_time = models.DateTimeField()
+    date_time = models.DateTimeField(default=timezone.now)
 
 class CollectibleItem(models.Model):
     name = models.CharField(max_length=255)
