@@ -3,7 +3,7 @@ from io import BytesIO
 import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Sum, Min, Max
+from django.db.models import Sum, Min, Max, Count, Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from geopy.distance import geodesic
@@ -153,6 +153,7 @@ class StopRunAPIView(APIView):
         run.save()
 
         finished_runs_count = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).count()
+
         if finished_runs_count >= 10:
             Challenge.objects.get_or_create(
                 full_name="Сделай 10 Забегов!",
@@ -193,6 +194,10 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
 
         if self.action == 'retrieve':
             qs = qs.prefetch_related('collectible_items')
+
+        qs = qs.annotate(
+            runs_finished=Count('runs', filter=Q(runs__status=Run.Status.FINISHED))
+        )
 
         return qs
 
