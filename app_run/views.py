@@ -3,7 +3,7 @@ from io import BytesIO
 import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Sum
+from django.db.models import Sum, Min, Max
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from geopy.distance import geodesic
@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
     PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer
-from .services import check_and_collect_items
+from .services import check_and_collect_items, calculate_run_time_seconds
 
 
 @api_view(['GET'])
@@ -151,8 +151,12 @@ class StopRunAPIView(APIView):
                 total_distance += segment_distance
             prev_point = current_point
 
+        run_time_seconds = calculate_run_time_seconds(positions)
+
         run.status = Run.Status.FINISHED
         run.distance = round(total_distance, 3)
+        run.run_time_seconds = run_time_seconds
+
         run.save()
 
         finished_runs_count = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).count()
@@ -171,7 +175,9 @@ class StopRunAPIView(APIView):
                 defaults={'full_name': "Пробеги 50 километров!"}
             )
 
-        return Response({'status': 'Забег закончен', 'distance': run.distance},
+        return Response({'status': 'Забег закончен',
+                         'distance': run.distance,
+                         'run_time_seconds': run.run_time_seconds},
                         status=status.HTTP_200_OK)
 
 

@@ -47,9 +47,11 @@ class ChallengeSerializer(serializers.ModelSerializer):
 
 
 class PositionSerializer(serializers.ModelSerializer):
+    date_time = serializers.DateTimeField(format='%Y-%m-%dT%H:%M:%S.%f')
+
     class Meta:
         model = Position
-        fields = ['id', 'run', 'latitude', 'longitude']
+        fields = ['id', 'run', 'latitude', 'longitude', 'date_time']
 
     def validate_run(self, run):
         if run.status != Run.Status.IN_PROGRESS:
@@ -68,8 +70,6 @@ class PositionSerializer(serializers.ModelSerializer):
 
 
 class CollectibleItemSerializer(serializers.ModelSerializer):
-    uid = serializers.CharField()
-
     class Meta:
         model = CollectibleItem
         fields = ['name', 'uid', 'value', 'latitude', 'longitude', 'picture']
