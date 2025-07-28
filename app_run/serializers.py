@@ -1,5 +1,3 @@
-import uuid
-
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.models import User
@@ -124,5 +122,11 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         return CollectibleItem.objects.create(**validated_data)
 
+
+class RunnerItemsSerializer(RunnerSerializer):
+    items = CollectibleItemSerializer(many=True, read_only=True, source='collectible_items')
+
+    class Meta(RunnerSerializer.Meta):
+        fields = RunnerSerializer.Meta.fields + ['items']
 
 

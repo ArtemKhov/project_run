@@ -4,7 +4,6 @@ import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Sum
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from geopy.distance import geodesic
@@ -18,7 +17,8 @@ from rest_framework.views import APIView
 
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer, CollectibleItemSerializer
+    PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer
+from .services import check_and_collect_items
 
 
 @api_view(['GET'])
@@ -183,7 +183,6 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['first_name', 'last_name']
     ordering_fields = ['date_joined']
 
-
     def get_queryset(self):
         qs = self.queryset
         user_type = self.request.query_params.get('type', None)
@@ -193,7 +192,17 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
         elif user_type == 'athlete':
             qs = qs.filter(is_staff=False)
 
+        if self.action == 'retrieve':
+            qs = qs.prefetch_related('collectible_items')
+
         return qs
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return RunnerSerializer
+        if self.action == 'retrieve':
+            return RunnerItemsSerializer
+        return super().get_serializer_class()
 
 
 class AthleteInfoAPIView(APIView):
@@ -259,6 +268,17 @@ class PositionViewSet(viewsets.ModelViewSet):
             qs = qs.filter(run_id=run)
 
         return qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        position = serializer.save()
+
+        athlete = position.run.athlete
+        check_and_collect_items(position, athlete)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class CollectibleItemListView(ListAPIView):
