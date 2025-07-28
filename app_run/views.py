@@ -18,7 +18,7 @@ from rest_framework.views import APIView
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
     PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer
-from .services import check_and_collect_items, calculate_run_time_seconds
+from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance
 
 
 @api_view(['GET'])
@@ -140,21 +140,14 @@ class StopRunAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        positions = run.position.all().order_by('id')
+        positions = run.position.all()
 
-        total_distance = 0.0
-        prev_point = None
-        for position in positions:
-            current_point = (float(position.latitude), float(position.longitude))
-            if prev_point:
-                segment_distance = geodesic(prev_point, current_point).kilometers
-                total_distance += segment_distance
-            prev_point = current_point
+        total_distance = calculate_run_distance(positions)
 
         run_time_seconds = calculate_run_time_seconds(positions)
 
         run.status = Run.Status.FINISHED
-        run.distance = round(total_distance, 3)
+        run.distance = total_distance
         run.run_time_seconds = run_time_seconds
 
         run.save()

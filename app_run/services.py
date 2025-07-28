@@ -15,6 +15,24 @@ def check_and_collect_items(position, athlete):
         if distance <= 100:
             item.users.add(athlete)
 
+def calculate_run_distance(positions_queryset):
+    """
+    Рассчитывает общую дистанцию забега в километрах по цепочке позиций.
+    Использует геодезическое расстояние между соседними точками.
+    """
+    positions = positions_queryset.order_by('id')
+    total_distance = 0.0
+    prev_point = None
+
+    for position in positions:
+        current_point = (float(position.latitude), float(position.longitude))
+        if prev_point:
+            segment_distance = geodesic(prev_point, current_point).kilometers
+            total_distance += segment_distance
+        prev_point = current_point
+
+    return round(total_distance, 3)
+
 def calculate_run_time_seconds(positions_queryset):
     """
     Рассчитывает общее время забега в секундах по позициям.
