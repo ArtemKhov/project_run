@@ -35,4 +35,4 @@ class CollectibleItem(models.Model):
     latitude = models.DecimalField(max_digits=10, decimal_places=4)
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
     picture = models.URLField(blank=True, null=True)
-    items = models.ManyToManyField(User, related_name='collectible_items')
+    users = models.ManyToManyField(User, related_name='collectible_items')
