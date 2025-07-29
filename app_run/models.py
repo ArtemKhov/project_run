@@ -16,6 +16,7 @@ class Run(models.Model):
     status = models.CharField(max_length=50, choices=Status.choices, default=Status.INIT)
     distance = models.FloatField(default=0.0)
     run_time_seconds = models.IntegerField(default=0)
+    speed = models.FloatField(default=0.0)
 
 class AthleteInfo(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='athlete_info')
