@@ -1,3 +1,5 @@
+from tkinter.constants import CASCADE
+
 from django.utils import timezone
 
 from django.contrib.auth.models import User
@@ -43,3 +45,14 @@ class CollectibleItem(models.Model):
     longitude = models.DecimalField(max_digits=10, decimal_places=4)
     picture = models.URLField(blank=True, null=True)
     users = models.ManyToManyField(User, related_name='collectible_items')
+
+class Subscribe(models.Model):
+    athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='athlete_subscriptions')
+    coach = models.ForeignKey(User, on_delete=models.CASCADE, related_name='coach_subscribers')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата подписки')
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+
+    class Meta:
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
+        unique_together = ('athlete', 'coach')
