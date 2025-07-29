@@ -130,31 +130,26 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
 
 class RunnerItemsSerializer(RunnerSerializer):
     items = CollectibleItemSerializer(many=True, read_only=True, source='collectible_items')
-
-    class Meta(RunnerSerializer.Meta):
-        fields = RunnerSerializer.Meta.fields + ['items']
-
-
-class CoachDetailSerializer(RunnerSerializer):
+    coach = serializers.SerializerMethodField()
     athletes = serializers.SerializerMethodField()
 
     class Meta(RunnerSerializer.Meta):
-        fields = RunnerSerializer.Meta.fields + ['athletes']
+        fields = RunnerSerializer.Meta.fields + ['items', 'coach', 'athletes']
 
-    def get_athletes(self, coach):
-        """Возвращает список ID атлетов, подписанных на тренера"""
-        return list(coach.coach_subscribers.filter(is_staff=False).values_list('id', flat=True))
-
-
-class AthleteDetailSerializer(RunnerSerializer):
-    coach = serializers.SerializerMethodField()
-
-    class Meta(RunnerSerializer.Meta):
-        fields = RunnerSerializer.Meta.fields + ['coach']
-
-    def get_coach(self, athlete):
+    def get_coach(self, user):
         """Возвращает ID первого тренера, на которого подписан атлет"""
-        subscription = athlete.athlete_subscriptions.filter(is_active=True).first()
-        return subscription.coach.id if subscription else None
+        if not user.is_staff:
+            subscription = user.athlete_subscriptions.filter(is_active=True, coach__is_staff=True).first()
+            return subscription.coach_id if subscription else None
+        return None
+
+    def get_athletes(self, user):
+        """Возвращает список ID атлетов, подписанных на тренера"""
+        if user.is_staff:
+            return list(user.coach_subscribers.filter(athlete__is_staff=False).values_list('athlete_id', flat=True))
+        return []
+
+
+
 
 
