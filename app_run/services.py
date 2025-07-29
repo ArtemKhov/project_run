@@ -71,7 +71,6 @@ def calculate_position_distance(position):
     else:
         position.distance = 0.0
 
-    position.save()
     return position
 
 
@@ -98,7 +97,6 @@ def calculate_position_speed(position):
     else:
         position.speed = 0.0
 
-    position.save()
     return position
 
 

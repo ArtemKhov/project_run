@@ -283,8 +283,10 @@ class PositionViewSet(viewsets.ModelViewSet):
 
         athlete = position.run.athlete
         check_and_collect_items(position, athlete)
+
         calculate_position_distance(position)
         calculate_position_speed(position)
+        position.save()
 
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
