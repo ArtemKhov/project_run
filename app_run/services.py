@@ -104,20 +104,12 @@ def calculate_average_speed(positions_queryset):
     """
     Рассчитывает среднюю скорость забега по всем позициям в м/с.
     """
-    positions = positions_queryset.order_by('id')
+    positions = positions_queryset.order_by('date_time')
     if positions.count() <= 1:
         return 0.0
 
-    total_distance_km = 0.0
-    prev_point = None
-
-    # Рассчитываем общее расстояние
-    for position in positions:
-        current_point = (float(position.latitude), float(position.longitude))
-        if prev_point:
-            segment_distance_km = geodesic(prev_point, current_point).kilometers
-            total_distance_km += segment_distance_km
-        prev_point = current_point
+    last_position = positions.last()
+    total_distance_km = last_position.distance if last_position else 0.0
 
     # Рассчитываем общее время
     time_aggregates = positions.aggregate(
