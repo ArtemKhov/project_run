@@ -108,25 +108,22 @@ def calculate_average_speed(positions_queryset):
     if positions.count() <= 1:
         return 0.0
 
-    total_speed = 0.0
-    count = 0
-
-    previous_position = None
+    # Суммарное расстояние (в километрах)
+    total_distance_km = 0.0
+    prev_point = None
     for position in positions:
-        if previous_position:
-            time_diff = (position.date_time - previous_position.date_time).total_seconds()
-            if time_diff > 0:
-                segment_distance_km = geodesic(
-                    (float(previous_position.latitude), float(previous_position.longitude)),
-                    (float(position.latitude), float(position.longitude))
-                ).kilometers
-                speed_mps = (segment_distance_km * 1000) / time_diff
-                total_speed += speed_mps
-                count += 1
-        previous_position = position
+        current_point = (float(position.latitude), float(position.longitude))
+        if prev_point:
+            segment_distance = geodesic(prev_point, current_point).kilometers
+            total_distance_km += segment_distance
+        prev_point = current_point
 
-    if count > 0:
-        average_speed_mps = total_speed // count
+    # Время между первой и последней точкой
+    start_time = positions.first().date_time
+    end_time = positions.last().date_time
+    total_time_seconds = (end_time - start_time).total_seconds()
+
+    if total_time_seconds > 0:
+        average_speed_mps = (total_distance_km * 1000) / total_time_seconds
         return round(average_speed_mps, 2)
-
     return 0.0
