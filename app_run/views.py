@@ -18,7 +18,8 @@ from rest_framework.views import APIView
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
     PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer
-from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance
+from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
+    calculate_position_distance, calculate_position_speed, calculate_average_speed
 
 
 @api_view(['GET'])
@@ -143,12 +144,13 @@ class StopRunAPIView(APIView):
         positions = run.position.all()
 
         total_distance = calculate_run_distance(positions)
-
         run_time_seconds = calculate_run_time_seconds(positions)
+        average_speed = calculate_average_speed(positions)
 
         run.status = Run.Status.FINISHED
         run.distance = total_distance
         run.run_time_seconds = run_time_seconds
+        run.speed = average_speed
 
         run.save()
 
@@ -171,7 +173,8 @@ class StopRunAPIView(APIView):
 
         return Response({'status': 'Забег закончен',
                          'distance': run.distance,
-                         'run_time_seconds': run.run_time_seconds},
+                         'run_time_seconds': run.run_time_seconds,
+                         'average_speed': run.speed},
                         status=status.HTTP_200_OK)
 
 
@@ -280,6 +283,8 @@ class PositionViewSet(viewsets.ModelViewSet):
 
         athlete = position.run.athlete
         check_and_collect_items(position, athlete)
+        calculate_position_distance(position)
+        calculate_position_speed(position)
 
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
