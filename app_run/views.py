@@ -6,7 +6,6 @@ from django.contrib.auth.models import User
 from django.db.models import Sum, Min, Max, Count, Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from geopy.distance import geodesic
 from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.generics import ListAPIView
@@ -17,7 +16,7 @@ from rest_framework.views import APIView
 
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer, CoachDetailSerializer, AthleteDetailSerializer
+    PositionSerializer, CollectibleItemSerializer, CoachDetailSerializer, AthleteDetailSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
     calculate_position_distance, calculate_position_speed, calculate_average_speed
 
