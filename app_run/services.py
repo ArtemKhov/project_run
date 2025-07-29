@@ -108,23 +108,25 @@ def calculate_average_speed(positions_queryset):
     if positions.count() <= 1:
         return 0.0
 
-    last_position = positions.last()
-    total_distance_km = last_position.distance if last_position else 0.0
+    total_speed = 0.0
+    count = 0
 
-    # Рассчитываем общее время
-    time_aggregates = positions.aggregate(
-        min_time=Min('date_time'),
-        max_time=Max('date_time')
-    )
+    previous_position = None
+    for position in positions:
+        if previous_position:
+            time_diff = (position.date_time - previous_position.date_time).total_seconds()
+            if time_diff > 0:
+                segment_distance_km = geodesic(
+                    (float(previous_position.latitude), float(previous_position.longitude)),
+                    (float(position.latitude), float(position.longitude))
+                ).kilometers
+                speed_mps = (segment_distance_km * 1000) / time_diff
+                total_speed += speed_mps
+                count += 1
+        previous_position = position
 
-    min_time = time_aggregates['min_time']
-    max_time = time_aggregates['max_time']
-
-    if min_time and max_time and min_time != max_time:
-        total_time_seconds = (max_time - min_time).total_seconds()
-        if total_time_seconds > 0:
-            # Средняя скорость = общее расстояние (в метрах) / общее время (в секундах)
-            average_speed_mps = (total_distance_km * 1000) / total_time_seconds
-            return round(average_speed_mps, 2)
+    if count > 0:
+        average_speed_mps = total_speed / count
+        return round(average_speed_mps, 2)
 
     return 0.0
