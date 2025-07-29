@@ -333,8 +333,7 @@ class SubscribeToCoachAPIView(APIView):
 
         if athlete.is_staff:
             return Response({'error': 'Подписываться могут только атлеты'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Проверяем, что подписка еще не существует
+
         if Subscribe.objects.filter(athlete=athlete, coach=coach).exists():
             return Response({'error': 'Подписка уже существует'}, status=status.HTTP_400_BAD_REQUEST)
 
