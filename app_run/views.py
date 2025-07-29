@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer
+    PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer, CoachDetailSerializer, AthleteDetailSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
     calculate_position_distance, calculate_position_speed, calculate_average_speed
 
@@ -215,7 +215,15 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == 'list':
             return RunnerSerializer
         if self.action == 'retrieve':
-            return RunnerItemsSerializer
+            user_id = self.kwargs.get('pk')
+            try:
+                user = User.objects.get(id=user_id)
+                if user.is_staff:
+                    return CoachDetailSerializer
+                else:
+                    return AthleteDetailSerializer
+            except User.DoesNotExist:
+                return RunnerSerializer
         return super().get_serializer_class()
 
 
