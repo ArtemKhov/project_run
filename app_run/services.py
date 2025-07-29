@@ -126,7 +126,7 @@ def calculate_average_speed(positions_queryset):
         previous_position = position
 
     if count > 0:
-        average_speed_mps = total_speed / count
+        average_speed_mps = total_speed // count
         return round(average_speed_mps, 2)
 
     return 0.0
