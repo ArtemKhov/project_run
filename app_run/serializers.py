@@ -135,3 +135,26 @@ class RunnerItemsSerializer(RunnerSerializer):
         fields = RunnerSerializer.Meta.fields + ['items']
 
 
+class CoachDetailSerializer(RunnerSerializer):
+    athletes = serializers.SerializerMethodField()
+
+    class Meta(RunnerSerializer.Meta):
+        fields = RunnerSerializer.Meta.fields + ['athletes']
+
+    def get_athletes(self, coach):
+        """Возвращает список ID атлетов, подписанных на тренера"""
+        return list(coach.coach_subscribers.filter(is_staff=False).values_list('id', flat=True))
+
+
+class AthleteDetailSerializer(RunnerSerializer):
+    coach = serializers.SerializerMethodField()
+
+    class Meta(RunnerSerializer.Meta):
+        fields = RunnerSerializer.Meta.fields + ['coach']
+
+    def get_coach(self, athlete):
+        """Возвращает ID первого тренера, на которого подписан атлет"""
+        subscription = athlete.athlete_subscriptions.filter(is_active=True).first()
+        return subscription.coach.id if subscription else None
+
+

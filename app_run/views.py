@@ -15,9 +15,9 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
+from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer
+    PositionSerializer, CollectibleItemSerializer, RunnerItemsSerializer, CoachDetailSerializer, AthleteDetailSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
     calculate_position_distance, calculate_position_speed, calculate_average_speed
 
@@ -203,7 +203,7 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(is_staff=False)
 
         if self.action == 'retrieve':
-            qs = qs.prefetch_related('collectible_items')
+            qs = qs.prefetch_related('collectible_items', 'athlete_subscriptions__coach', 'coach_subscribers')
 
         qs = qs.annotate(
             runs_finished=Count('runs', filter=Q(runs__status=Run.Status.FINISHED))
@@ -215,7 +215,15 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == 'list':
             return RunnerSerializer
         if self.action == 'retrieve':
-            return RunnerItemsSerializer
+            user_id = self.kwargs.get('pk')
+            try:
+                user = User.objects.get(id=user_id)
+                if user.is_staff:
+                    return CoachDetailSerializer
+                else:
+                    return AthleteDetailSerializer
+            except User.DoesNotExist:
+                return RunnerSerializer
         return super().get_serializer_class()
 
 
@@ -304,3 +312,43 @@ class PositionViewSet(viewsets.ModelViewSet):
 class CollectibleItemListView(ListAPIView):
     queryset = CollectibleItem.objects.all()
     serializer_class = CollectibleItemSerializer
+
+
+class SubscribeToCoachAPIView(APIView):
+    def post(self, request, id):
+        try:
+            coach = User.objects.get(id=id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+        if not coach.is_staff:
+            return Response(
+                {'error': 'Можно подписываться только на тренеров'}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+        athlete_id = request.data.get('athlete')
+        if not athlete_id:
+            return Response(
+                {'error': 'ID атлета обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            athlete = User.objects.get(id=athlete_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Атлет не найден'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if athlete.is_staff:
+            return Response({'error': 'Подписываться могут только атлеты'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Проверяем, что подписка еще не существует
+        if Subscribe.objects.filter(athlete=athlete, coach=coach).exists():
+            return Response({'error': 'Подписка уже существует'}, status=status.HTTP_400_BAD_REQUEST)
+
+        Subscribe.objects.create(athlete=athlete, coach=coach)
+        
+        return Response(
+            {'message': f'Атлет {athlete.username} успешно подписался на тренера {coach.username}'}, 
+            status=status.HTTP_200_OK
+        )
