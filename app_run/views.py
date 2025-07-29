@@ -171,6 +171,13 @@ class StopRunAPIView(APIView):
                 defaults={'full_name': "Пробеги 50 километров!"}
             )
 
+        if total_distance >= 2.0 and run_time_seconds > 0 and run_time_seconds <= 600:
+            Challenge.objects.get_or_create(
+                full_name="2 километра за 10 минут!",
+                athlete=run.athlete,
+                defaults={'full_name': "2 километра за 10 минут!"}
+            )
+
         return Response({'status': 'Забег закончен',
                          'distance': run.distance,
                          'run_time_seconds': run.run_time_seconds,
