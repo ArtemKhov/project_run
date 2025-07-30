@@ -432,35 +432,31 @@ class AnalyticsForCoachAPIView(APIView):
         
         # Средняя скорость по атлетам
         runs_with_positions = finished_runs.prefetch_related('position').all()
-        
-        athlete_stats = {}
-        
-        for run in runs_with_positions:
-            athlete_id = run.athlete_id
-            if athlete_id not in athlete_stats:
-                athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
 
+        # Средняя скорость по атлетам - рассчитываем вручную
+        athlete_speeds = {}
+
+        for run in finished_runs:
             positions = run.position.all()
             if positions.exists():
-                run_distance = calculate_run_distance(positions)
-                run_time = calculate_run_time_seconds(positions)
-                
-                athlete_stats[athlete_id]['total_distance'] += run_distance
-                athlete_stats[athlete_id]['total_time'] += run_time
-        
+                avg_speed = calculate_average_speed(positions)
+                if run.athlete_id not in athlete_speeds:
+                    athlete_speeds[run.athlete_id] = []
+                if avg_speed > 0:  # Только положительные скорости
+                    athlete_speeds[run.athlete_id].append(avg_speed)
+
         # Находим атлета с максимальной средней скоростью
-        fastest_athlete = None
-        max_avg_speed = 0.0
-        
-        for athlete_id, stats in athlete_stats.items():
-            if stats['total_time'] > 0:
-                avg_speed = (stats['total_distance'] * 1000) / stats['total_time']
-                if avg_speed > max_avg_speed:
-                    max_avg_speed = avg_speed
-                    fastest_athlete = athlete_id
-        
-        speed_avg_user = fastest_athlete
-        speed_avg_value = round(max_avg_speed, 2) if fastest_athlete else None
+        speed_avg_user = None
+        speed_avg_value = None
+        max_avg_speed = 0
+
+        for athlete_id, speeds in athlete_speeds.items():
+            if speeds:  # Если есть скорости
+                athlete_avg_speed = sum(speeds) / len(speeds)
+                if athlete_avg_speed > max_avg_speed:
+                    max_avg_speed = athlete_avg_speed
+                    speed_avg_user = athlete_id
+                    speed_avg_value = round(athlete_avg_speed, 2)
         
         analytics = {
             'longest_run_user': longest_run_user,
