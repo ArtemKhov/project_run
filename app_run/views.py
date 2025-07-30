@@ -16,7 +16,8 @@ from rest_framework.views import APIView
 
 from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer, CollectibleItemSerializer, CoachDetailSerializer, AthleteDetailSerializer
+    PositionSerializer, CollectibleItemSerializer, CoachDetailSerializer, AthleteDetailSerializer, \
+    UserChallengeSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
     calculate_position_distance, calculate_position_speed, calculate_average_speed
 
@@ -275,6 +276,27 @@ class ChallengeAPIView(ListAPIView):
             queryset = queryset.filter(athlete__id=athlete_id)
 
         return queryset
+
+
+class ChallengeSummaryAPIView(APIView):
+    def get(self, request):
+        challenges = Challenge.objects.select_related('athlete').all()
+
+        challenge_map = {}
+        for ch in challenges:
+            name = ch.full_name
+            if name not in challenge_map:
+                challenge_map[name] = []
+            challenge_map[name].append(ch.athlete)
+
+        result = []
+        for name, athletes in challenge_map.items():
+            athletes_data = UserChallengeSerializer(athletes, many=True).data
+            result.append({
+                "name_to_display": name,
+                "athletes": athletes_data
+            })
+        return Response(result)
 
 
 class PositionViewSet(viewsets.ModelViewSet):

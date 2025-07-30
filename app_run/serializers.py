@@ -11,6 +11,17 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'last_name', 'first_name']
 
 
+class UserChallengeSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ['id', 'full_name', 'username']
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
+
+
 class RunSerializer(serializers.ModelSerializer):
     athlete_data = UserSerializer(read_only=True, source='athlete')
     
