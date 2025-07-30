@@ -3,7 +3,7 @@ from io import BytesIO
 import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Sum, Min, Max, Count, Q
+from django.db.models import Sum, Min, Max, Count, Q, Avg
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import api_view
@@ -14,12 +14,13 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe
+from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe, Rating
 from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
     PositionSerializer, CollectibleItemSerializer, CoachDetailSerializer, AthleteDetailSerializer, \
     UserChallengeSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
     calculate_position_distance, calculate_position_speed, calculate_average_speed, ChallengeAssigner
+from django.db import transaction
 
 
 @api_view(['GET'])
@@ -186,10 +187,12 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
 
         if self.action == 'retrieve':
             qs = qs.prefetch_related('collectible_items', 'athlete_subscriptions__coach', 'coach_subscribers')
-
-        qs = qs.annotate(
-            runs_finished=Count('runs', filter=Q(runs__status=Run.Status.FINISHED))
-        )
+            qs = qs.annotate(avg_rating=Avg('coach_rating__rating'))
+        else:
+            qs = qs.annotate(
+                runs_finished=Count('runs', filter=Q(runs__status=Run.Status.FINISHED)),
+                avg_rating=Avg('coach_rating__rating')
+            )
 
         return qs
 
@@ -354,3 +357,41 @@ class SubscribeToCoachAPIView(APIView):
             {'message': f'Атлет {athlete.username} успешно подписался на тренера {coach.username}'}, 
             status=status.HTTP_200_OK
         )
+
+
+class RatingCoachAPIView(APIView):
+    def post(self, request, coach_id):
+        athlete_id = request.data.get('athlete')
+        rating_value = request.data.get('rating')
+
+
+        try:
+            coach = User.objects.get(id=coach_id, is_staff=True)
+        except User.DoesNotExist:
+            return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            athlete = User.objects.get(id=athlete_id, is_staff=False)
+        except User.DoesNotExist:
+            return Response({'error': 'Атлет не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+
+        if not Subscribe.objects.filter(athlete=athlete, coach=coach, is_active=True).exists():
+            return Response({'error': 'Атлет должен быть подписан на тренера, чтобы оценить его'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        try:
+            rating_int = int(rating_value)
+        except (TypeError, ValueError):
+            return Response({'error': 'Оценка должна быть целым числом от 1 до 5'}, status=status.HTTP_400_BAD_REQUEST)
+        if rating_int < 1 or rating_int > 5:
+            return Response({'error': 'Оценка должна быть от 1 до 5'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        obj, created = Rating.objects.update_or_create(
+            athlete=athlete,
+            coach=coach,
+            defaults={'rating': rating_int}
+        )
+
+        return Response({'message': f'Атлет {athlete.username} успешно оценил тренера {coach.username} на {rating_int}'}, status=status.HTTP_200_OK)

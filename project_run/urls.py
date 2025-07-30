@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from app_run.views import company_details, RunViewSet, RunnerViewSet, StartRunAPIView, StopRunAPIView, \
     AthleteInfoAPIView, ChallengeAPIView, PositionViewSet, CollectibleItemListView, upload_file_view, \
-    SubscribeToCoachAPIView, ChallengeSummaryAPIView
+    SubscribeToCoachAPIView, ChallengeSummaryAPIView, RatingCoachAPIView
 
 router = DefaultRouter()
 router.register('api/runs', RunViewSet)
@@ -22,5 +22,6 @@ urlpatterns = [
     path('api/runs/<int:run_id>/stop/', StopRunAPIView.as_view()),
     path('api/athlete_info/<int:user_id>/', AthleteInfoAPIView.as_view()),
     path('api/subscribe_to_coach/<int:id>/', SubscribeToCoachAPIView.as_view()),
+    path('api/rate_coach/<int:coach_id>/', RatingCoachAPIView.as_view()),
     path('', include(router.urls)),
 ]

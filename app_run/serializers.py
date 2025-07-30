@@ -2,7 +2,8 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem
+from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Rating
+from django.db import models
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -47,13 +48,20 @@ class AthleteInfoSerializer(serializers.ModelSerializer):
 class RunnerSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     runs_finished = serializers.ReadOnlyField()
+    rating = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'date_joined', 'username', 'last_name', 'first_name', 'type', 'runs_finished']
+        fields = ['id', 'date_joined', 'username', 'last_name', 'first_name', 'type', 'runs_finished', 'rating']
 
     def get_type(self, user):
         return "coach" if user.is_staff else "athlete"
+
+    def get_rating(self, user):
+        rating = getattr(user, 'avg_rating', None)
+        if rating is not None:
+            return round(rating, 2)
+        return None
 
 
 class ChallengeSerializer(serializers.ModelSerializer):
@@ -160,6 +168,14 @@ class AthleteDetailSerializer(RunnerSerializer):
         """Возвращает ID первого тренера, на которого подписан атлет"""
         subscription = athlete.athlete_subscriptions.filter(is_active=True, coach__is_staff=True).first()
         return subscription.coach_id if subscription else None
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rating
+        fields = ['coach', 'athlete', 'rating']
+
+
 
 
 
