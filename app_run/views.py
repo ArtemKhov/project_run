@@ -439,12 +439,14 @@ class AnalyticsForCoachAPIView(APIView):
                 run_distance = calculate_run_distance(positions)
                 run_time = calculate_run_time_seconds(positions)
                 
-                athlete_id = run.athlete_id
-                if athlete_id not in athlete_stats:
-                    athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
-                
-                athlete_stats[athlete_id]['total_distance'] += run_distance
-                athlete_stats[athlete_id]['total_time'] += run_time
+                # Проверяем, что время больше нуля
+                if run_time > 0:
+                    athlete_id = run.athlete_id
+                    if athlete_id not in athlete_stats:
+                        athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
+                    
+                    athlete_stats[athlete_id]['total_distance'] += run_distance
+                    athlete_stats[athlete_id]['total_time'] += run_time
 
         # Находим атлета с максимальной средней скоростью
         speed_avg_user = None
@@ -452,12 +454,18 @@ class AnalyticsForCoachAPIView(APIView):
         max_avg_speed = 0.0
 
         for athlete_id, stats in athlete_stats.items():
-            if stats['total_time'] > 0:
+            # Дополнительная проверка на нулевое время
+            if stats['total_time'] > 0 and stats['total_distance'] > 0:
                 real_avg_speed = (stats['total_distance'] * 1000) / stats['total_time']
                 if real_avg_speed > max_avg_speed:
                     max_avg_speed = real_avg_speed
                     speed_avg_user = athlete_id
                     speed_avg_value = round(real_avg_speed, 2)
+        
+        # Если нет атлетов с положительной скоростью, возвращаем None
+        if speed_avg_user is None:
+            speed_avg_user = None
+            speed_avg_value = None
         
         analytics = {
             'longest_run_user': longest_run_user,
