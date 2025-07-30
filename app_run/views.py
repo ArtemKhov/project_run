@@ -19,7 +19,7 @@ from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer,
     PositionSerializer, CollectibleItemSerializer, CoachDetailSerializer, AthleteDetailSerializer, \
     UserChallengeSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
-    calculate_position_distance, calculate_position_speed, calculate_average_speed
+    calculate_position_distance, calculate_position_speed, calculate_average_speed, ChallengeAssigner
 
 
 @api_view(['GET'])
@@ -154,29 +154,11 @@ class StopRunAPIView(APIView):
 
         run.save()
 
-        finished_runs_count = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).count()
+        finished_runs_count = Run.objects.filter(athlete=run.athlete, status=Run.Status.FINISHED).count()
+        total_km = Run.objects.filter(athlete=run.athlete, status=Run.Status.FINISHED).aggregate(total_distance=Sum('distance'))['total_distance'] or 0
 
-        if finished_runs_count >= 10:
-            Challenge.objects.get_or_create(
-                full_name="Сделай 10 Забегов!",
-                athlete=run.athlete,
-                defaults={'full_name': "Сделай 10 Забегов!"}
-            )
-
-        total_km = Run.objects.filter(athlete=run.athlete,status=Run.Status.FINISHED).aggregate(total_distance=Sum('distance'))['total_distance'] or 0
-        if total_km >= 50:
-            Challenge.objects.get_or_create(
-                full_name="Пробеги 50 километров!",
-                athlete=run.athlete,
-                defaults={'full_name': "Пробеги 50 километров!"}
-            )
-
-        if total_distance >= 2.0 and run_time_seconds > 0 and run_time_seconds <= 600:
-            Challenge.objects.get_or_create(
-                full_name="2 километра за 10 минут!",
-                athlete=run.athlete,
-                defaults={'full_name': "2 километра за 10 минут!"}
-            )
+        assigner = ChallengeAssigner(run, finished_runs_count, total_km, total_distance, run_time_seconds)
+        assigner.assign()
 
         return Response({'status': 'Забег закончен',
                          'distance': run.distance,

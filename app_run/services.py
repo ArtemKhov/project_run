@@ -1,6 +1,6 @@
 from django.db.models import Min, Max
 from geopy.distance import geodesic
-from .models import CollectibleItem, Position
+from .models import CollectibleItem, Position, Challenge
 
 
 def check_and_collect_items(position, athlete):
@@ -127,3 +127,58 @@ def calculate_average_speed(positions_queryset):
         average_speed_mps = (total_distance_km * 1000) / total_time_seconds
         return round(average_speed_mps, 2)
     return 0.0
+
+
+class ChallengeAssigner:
+    """
+    Класс для присвоения челленджей атлету по результатам забега.
+    """
+
+    def __init__(self, run, finished_runs_count, total_km, total_distance, run_time_seconds):
+        self.run = run
+        self.athlete = run.athlete
+        self.finished_runs_count = finished_runs_count
+        self.total_km = total_km
+        self.total_distance = total_distance
+        self.run_time_seconds = run_time_seconds
+
+    def assign(self):
+        """
+        Присваивает все подходящие челленджи атлету по результатам забега.
+        """
+        self._assign_10_runs()
+        self._assign_50_km()
+        self._assign_2km_10min()
+
+    def _assign_10_runs(self):
+        """
+        Присваивает челлендж "Сделай 10 Забегов!", если атлет завершил 10 и более забегов.
+        """
+        if self.finished_runs_count >= 10:
+            Challenge.objects.get_or_create(
+                full_name="Сделай 10 Забегов!",
+                athlete=self.athlete,
+                defaults={'full_name': "Сделай 10 Забегов!"}
+            )
+
+    def _assign_50_km(self):
+        """
+        Присваивает челлендж "Пробеги 50 километров!", если атлет пробежал >= 50 км.
+        """
+        if self.total_km >= 50:
+            Challenge.objects.get_or_create(
+                full_name="Пробеги 50 километров!",
+                athlete=self.athlete,
+                defaults={'full_name': "Пробеги 50 километров!"}
+            )
+
+    def _assign_2km_10min(self):
+        """
+        Присваивает челлендж "2 километра за 10 минут!", если дистанция текущего забега >= 2 км и время <= 10 минут.
+        """
+        if self.total_distance >= 2.0 and self.run_time_seconds > 0 and self.run_time_seconds <= 600:
+            Challenge.objects.get_or_create(
+                full_name="2 километра за 10 минут!",
+                athlete=self.athlete,
+                defaults={'full_name': "2 километра за 10 минут!"}
+            )
