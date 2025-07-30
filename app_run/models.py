@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -53,4 +54,18 @@ class Subscribe(models.Model):
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
+        unique_together = ('athlete', 'coach')
+
+class Rating(models.Model):
+    athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='athlete_rating')
+    coach = models.ForeignKey(User, on_delete=models.CASCADE, related_name='coach_rating')
+    rating = models.IntegerField(blank=True, null=True)
+
+    def clean(self):
+        if self.rating is not None and (self.rating < 1 or self.rating > 5):
+            raise ValidationError({'rating': 'Оценка должна быть от 1 до 5.'})
+
+    class Meta:
+        verbose_name = 'Рейтинг'
+        verbose_name_plural = 'Рейтинг'
         unique_together = ('athlete', 'coach')
