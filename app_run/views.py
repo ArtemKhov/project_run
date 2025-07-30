@@ -432,18 +432,23 @@ class AnalyticsForCoachAPIView(APIView):
         
         # Средняя скорость по атлетам
         runs_with_positions = finished_runs.prefetch_related('position').all()
-
+        
         athlete_stats = {}
         
         for run in runs_with_positions:
             athlete_id = run.athlete_id
             if athlete_id not in athlete_stats:
                 athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
-            
 
-            athlete_stats[athlete_id]['total_distance'] += run.distance
-            athlete_stats[athlete_id]['total_time'] += run.run_time_seconds
-
+            positions = run.position.all()
+            if positions.exists():
+                run_distance = calculate_run_distance(positions)
+                run_time = calculate_run_time_seconds(positions)
+                
+                athlete_stats[athlete_id]['total_distance'] += run_distance
+                athlete_stats[athlete_id]['total_time'] += run_time
+        
+        # Находим атлета с максимальной средней скоростью
         fastest_athlete = None
         max_avg_speed = 0.0
         
