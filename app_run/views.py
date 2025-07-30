@@ -368,12 +368,12 @@ class RatingCoachAPIView(APIView):
         try:
             coach = User.objects.get(id=coach_id, is_staff=True)
         except User.DoesNotExist:
-            return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Тренер не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             athlete = User.objects.get(id=athlete_id, is_staff=False)
         except User.DoesNotExist:
-            return Response({'error': 'Атлет не найден'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Атлет не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
 
         if not Subscribe.objects.filter(athlete=athlete, coach=coach, is_active=True).exists():
