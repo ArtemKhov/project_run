@@ -430,22 +430,31 @@ class AnalyticsForCoachAPIView(APIView):
         total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
         total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
         
-        # Средняя скорость по атлетам
-        total_stats_by_athlete = finished_runs.values('athlete_id').annotate(
-            total_distance=Sum('distance'),
-            total_time=Sum('run_time_seconds')
-        ).filter(total_time__gt=0)
-        
-        # Рассчитываем среднюю скорость для каждого атлета
+        # Средняя скорость по атлетам (пересчитываем по позициям)
         athletes_with_speed = []
-        for stats in total_stats_by_athlete:
-            total_distance_km = stats['total_distance']
-            total_time_seconds = stats['total_time']
-            avg_speed_mps = (total_distance_km * 1000) / total_time_seconds
-            athletes_with_speed.append({
-                'athlete_id': stats['athlete_id'],
-                'avg_speed': avg_speed_mps
-            })
+        
+        for athlete_id in subscribed_athletes:
+            athlete_runs = finished_runs.filter(athlete_id=athlete_id)
+            
+            total_distance_km = 0.0
+            total_time_seconds = 0
+            
+            for run in athlete_runs:
+                positions = run.position.all()
+                if positions.exists():
+                    # Пересчитываем дистанцию и время по позициям
+                    run_distance = calculate_run_distance(positions)
+                    run_time = calculate_run_time_seconds(positions)
+                    
+                    total_distance_km += run_distance
+                    total_time_seconds += run_time
+            
+            if total_time_seconds > 0:
+                avg_speed_mps = (total_distance_km * 1000) / total_time_seconds
+                athletes_with_speed.append({
+                    'athlete_id': athlete_id,
+                    'avg_speed': avg_speed_mps
+                })
         
         # Сортируем по средней скорости и берём первого (с максимальной скоростью)
         if athletes_with_speed:
