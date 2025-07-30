@@ -415,7 +415,7 @@ class AnalyticsForCoachAPIView(APIView):
                 'speed_avg_value': None
             }, status=status.HTTP_200_OK)
 
-        finished_runs = Run.objects.filter(athlete_id__in=subscribed_athletes,status=Run.Status.FINISHED)
+        finished_runs = Run.objects.filter(athlete_id__in=subscribed_athletes, status=Run.Status.FINISHED)
         
         # Самый длинный забег
         longest_run = finished_runs.order_by('-distance').first()
@@ -430,40 +430,32 @@ class AnalyticsForCoachAPIView(APIView):
         total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
         total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
         
-        # Средняя скорость по атлетам (пересчитываем по позициям)
-        athletes_with_speed = []
+        # Средняя скорость по атлетам
+        runs_with_positions = finished_runs.prefetch_related('position').all()
+
+        athlete_stats = {}
         
-        for athlete_id in subscribed_athletes:
-            athlete_runs = finished_runs.filter(athlete_id=athlete_id)
+        for run in runs_with_positions:
+            athlete_id = run.athlete_id
+            if athlete_id not in athlete_stats:
+                athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
             
-            total_distance_km = 0.0
-            total_time_seconds = 0
-            
-            for run in athlete_runs:
-                positions = run.position.all()
-                if positions.exists():
-                    # Пересчитываем дистанцию и время по позициям
-                    run_distance = calculate_run_distance(positions)
-                    run_time = calculate_run_time_seconds(positions)
-                    
-                    total_distance_km += run_distance
-                    total_time_seconds += run_time
-            
-            if total_time_seconds > 0:
-                avg_speed_mps = (total_distance_km * 1000) / total_time_seconds
-                athletes_with_speed.append({
-                    'athlete_id': athlete_id,
-                    'avg_speed': avg_speed_mps
-                })
+
+            athlete_stats[athlete_id]['total_distance'] += run.distance
+            athlete_stats[athlete_id]['total_time'] += run.run_time_seconds
+
+        fastest_athlete = None
+        max_avg_speed = 0.0
         
-        # Сортируем по средней скорости и берём первого (с максимальной скоростью)
-        if athletes_with_speed:
-            fastest_athlete = max(athletes_with_speed, key=lambda x: x['avg_speed'])
-            speed_avg_user = fastest_athlete['athlete_id']
-            speed_avg_value = round(fastest_athlete['avg_speed'], 2)
-        else:
-            speed_avg_user = None
-            speed_avg_value = None
+        for athlete_id, stats in athlete_stats.items():
+            if stats['total_time'] > 0:
+                avg_speed = (stats['total_distance'] * 1000) / stats['total_time']
+                if avg_speed > max_avg_speed:
+                    max_avg_speed = avg_speed
+                    fastest_athlete = athlete_id
+        
+        speed_avg_user = fastest_athlete
+        speed_avg_value = round(max_avg_speed, 2) if fastest_athlete else None
         
         analytics = {
             'longest_run_user': longest_run_user,
