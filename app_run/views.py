@@ -20,7 +20,6 @@ from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer,
     UserChallengeSerializer
 from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
     calculate_position_distance, calculate_position_speed, calculate_average_speed, ChallengeAssigner
-from django.db import transaction
 
 
 @api_view(['GET'])
@@ -395,3 +394,57 @@ class RatingCoachAPIView(APIView):
         )
 
         return Response({'message': f'Атлет {athlete.username} успешно оценил тренера {coach.username} на {rating_int}'}, status=status.HTTP_200_OK)
+
+
+class AnalyticsForCoachAPIView(APIView):
+    def get(self, request, coach_id):
+        try:
+            coach = User.objects.get(id=coach_id, is_staff=True)
+        except User.DoesNotExist:
+            return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+        subscribed_athletes = Subscribe.objects.filter(coach_id=coach_id, is_active=True).values_list('athlete_id', flat=True)
+
+        if not subscribed_athletes:
+            return Response({
+                'longest_run_user': None,
+                'longest_run_value': None,
+                'total_run_user': None,
+                'total_run_value': None,
+                'speed_avg_user': None,
+                'speed_avg_value': None
+            }, status=status.HTTP_200_OK)
+
+        finished_runs = Run.objects.filter(athlete_id__in=subscribed_athletes,status=Run.Status.FINISHED)
+        
+        # Самый длинный забег
+        longest_run = finished_runs.order_by('-distance').first()
+        longest_run_user = longest_run.athlete_id if longest_run else None
+        longest_run_value = longest_run.distance if longest_run else None
+        
+        # Общая дистанция по атлетам
+        total_distance_by_athlete = finished_runs.values('athlete_id').annotate(
+            total_distance=Sum('distance')
+        ).order_by('-total_distance').first()
+        
+        total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
+        total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
+        
+        # Средняя скорость по атлетам
+        avg_speed_by_athlete = finished_runs.values('athlete_id').annotate(
+            avg_speed=Avg('speed')
+        ).filter(avg_speed__gt=0).order_by('-avg_speed').first()
+        
+        speed_avg_user = avg_speed_by_athlete['athlete_id'] if avg_speed_by_athlete else None
+        speed_avg_value = round(avg_speed_by_athlete['avg_speed'], 2) if avg_speed_by_athlete else None
+        
+        analytics = {
+            'longest_run_user': longest_run_user,
+            'longest_run_value': longest_run_value,
+            'total_run_user': total_run_user,
+            'total_run_value': total_run_value,
+            'speed_avg_user': speed_avg_user,
+            'speed_avg_value': speed_avg_value
+        }
+        
+        return Response(analytics, status=status.HTTP_200_OK)
