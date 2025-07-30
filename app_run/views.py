@@ -430,20 +430,30 @@ class AnalyticsForCoachAPIView(APIView):
         total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
         total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
         
-        # Средняя скорость по атлетам (реальная средняя скорость: общая дистанция / общее время)
+        # Средняя скорость по атлетам
         total_stats_by_athlete = finished_runs.values('athlete_id').annotate(
             total_distance=Sum('distance'),
             total_time=Sum('run_time_seconds')
-        ).filter(total_time__gt=0).order_by('-total_distance').first()
-
-        speed_avg_user = total_stats_by_athlete['athlete_id'] if total_stats_by_athlete else None
-        if total_stats_by_athlete:
-            # Рассчитываем реальную среднюю скорость: общая дистанция / общее время
-            total_distance_km = total_stats_by_athlete['total_distance']
-            total_time_seconds = total_stats_by_athlete['total_time']
-            real_avg_speed_mps = (total_distance_km * 1000) / total_time_seconds  # км/с -> м/с
-            speed_avg_value = round(real_avg_speed_mps, 2)
+        ).filter(total_time__gt=0)
+        
+        # Рассчитываем среднюю скорость для каждого атлета
+        athletes_with_speed = []
+        for stats in total_stats_by_athlete:
+            total_distance_km = stats['total_distance']
+            total_time_seconds = stats['total_time']
+            avg_speed_mps = (total_distance_km * 1000) / total_time_seconds
+            athletes_with_speed.append({
+                'athlete_id': stats['athlete_id'],
+                'avg_speed': avg_speed_mps
+            })
+        
+        # Сортируем по средней скорости и берём первого (с максимальной скоростью)
+        if athletes_with_speed:
+            fastest_athlete = max(athletes_with_speed, key=lambda x: x['avg_speed'])
+            speed_avg_user = fastest_athlete['athlete_id']
+            speed_avg_value = round(fastest_athlete['avg_speed'], 2)
         else:
+            speed_avg_user = None
             speed_avg_value = None
         
         analytics = {
