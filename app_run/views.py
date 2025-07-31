@@ -478,5 +478,8 @@ class AnalyticsForCoachAPIView(APIView):
             'speed_avg_user': speed_avg_user,
             'speed_avg_value': speed_avg_value
         }
+
+        data = speed_avg_value
+        print(f'DEBUG_1 {data} {athlete_stats}')
         
         return Response(analytics, status=status.HTTP_200_OK)
