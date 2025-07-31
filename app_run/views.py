@@ -465,7 +465,10 @@ class AnalyticsForCoachAPIView(APIView):
         if not athlete_stats:
             speed_avg_user = None
             speed_avg_value = None
-        
+
+        data = calc_mid_speed(athlete)
+        print(f'DEBUG_1 {data})
+
         analytics = {
             'longest_run_user': longest_run_user,
             'longest_run_value': longest_run_value,
