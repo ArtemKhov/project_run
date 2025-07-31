@@ -431,22 +431,25 @@ class AnalyticsForCoachAPIView(APIView):
 
         athlete_stats = {}
 
-        # Собираем статистику только для атлетов с завершёнными забегами
-        for run in finished_runs:
-            positions = run.position.all().order_by('date_time')
-            if positions.count() >= 2:
-                run_distance = calculate_run_distance(positions)
-                run_time = calculate_run_time_seconds(positions)
-                athlete_id = run.athlete_id
-                if athlete_id not in athlete_stats:
-                    athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
-                athlete_stats[athlete_id]['total_distance'] += run_distance
-                athlete_stats[athlete_id]['total_time'] += run_time
-
-        # Инициализируем статистику для всех подписанных атлетов
+        # Собираем статистику для всех подписанных атлетов
         for athlete_id in subscribed_athletes:
-            if athlete_id not in athlete_stats:
-                athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
+            athlete_runs = finished_runs.filter(athlete_id=athlete_id)
+            total_distance = 0.0
+            total_time = 0
+            
+            for run in athlete_runs:
+                positions = run.position.all().order_by('date_time')
+                if positions.count() >= 2:
+                    run_distance = calculate_run_distance(positions)
+                    run_time = calculate_run_time_seconds(positions)
+                    total_distance += run_distance
+                    total_time += run_time
+            
+            athlete_stats[athlete_id] = {
+                'total_distance': total_distance,
+                'total_time': total_time,
+                'runs_count': athlete_runs.count()
+            }
 
         speed_avg_user = None
         speed_avg_value = None
@@ -479,6 +482,22 @@ class AnalyticsForCoachAPIView(APIView):
             'speed_avg_value': speed_avg_value
         }
 
+        # Отладочные принты
+        print(f'DEBUG: Coach ID: {coach_id}')
+        print(f'DEBUG: Subscribed athletes: {list(subscribed_athletes)}')
+        print(f'DEBUG: Total finished runs: {finished_runs.count()}')
+        
+        # Детальная отладка для каждого атлета
+        for athlete_id, stats in athlete_stats.items():
+            print(f'DEBUG_ATHLETE_{athlete_id}: {stats}')
+            if stats['total_time'] > 0:
+                calculated_speed = (stats['total_distance'] * 1000) / stats['total_time']
+                print(f'DEBUG_ATHLETE_{athlete_id}_SPEED: {calculated_speed}')
+            else:
+                print(f'DEBUG_ATHLETE_{athlete_id}_SPEED: 0.0 (no time)')
+        
+        print(f'DEBUG: Final speed_avg_user: {speed_avg_user}, speed_avg_value: {speed_avg_value}')
+        
         data = speed_avg_value
         print(f'DEBUG_1 {data} {athlete_stats}')
         
