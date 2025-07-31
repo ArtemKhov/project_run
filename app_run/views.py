@@ -396,6 +396,36 @@ class RatingCoachAPIView(APIView):
         return Response({'message': f'Атлет {athlete.username} успешно оценил тренера {coach.username} на {rating_int}'}, status=status.HTTP_200_OK)
 
 
+def calc_mid_speed(athlete_id):
+    """
+    Рассчитывает среднюю скорость для конкретного атлета.
+    Используется для отладки.
+    """
+    finished_runs = Run.objects.filter(athlete_id=athlete_id, status=Run.Status.FINISHED)
+
+    total_distance = 0.0
+    total_time = 0
+
+    for run in finished_runs:
+        positions = run.position.all().order_by('date_time')
+        if positions.count() >= 2:
+            run_distance = calculate_run_distance(positions)
+            run_time = calculate_run_time_seconds(positions)
+            total_distance += run_distance
+            total_time += run_time
+
+    if total_time > 0:
+        avg_speed = (total_distance * 1000) / total_time
+    else:
+        avg_speed = 0.0
+
+    return {
+        'athlete_id': athlete_id,
+        'total_distance': total_distance,
+        'total_time': total_time,
+        'avg_speed': round(avg_speed, 2)
+    }
+
 class AnalyticsForCoachAPIView(APIView):
     def get(self, request, coach_id):
         try:
@@ -466,8 +496,21 @@ class AnalyticsForCoachAPIView(APIView):
             speed_avg_user = None
             speed_avg_value = None
 
-        data = calc_mid_speed(athlete)
-        print(f'DEBUG_1 {data})
+            # Отладочные принты
+            print(f'DEBUG: Coach ID: {coach_id}')
+            print(f'DEBUG: Subscribed athletes: {list(subscribed_athletes)}')
+            print(f'DEBUG: Athlete stats: {athlete_stats}')
+            print(f'DEBUG: Speed avg user: {speed_avg_user}, Speed avg value: {speed_avg_value}')
+
+            # Отладка для конкретного атлета (если есть)
+            if speed_avg_user:
+                data = calc_mid_speed(speed_avg_user)
+                print(f'DEBUG_1: {data}')
+
+            # Отладка для всех атлетов
+            for athlete_id in subscribed_athletes:
+                data = calc_mid_speed(athlete_id)
+                print(f'DEBUG_ATHLETE_{athlete_id}: {data}')
 
         analytics = {
             'longest_run_user': longest_run_user,
