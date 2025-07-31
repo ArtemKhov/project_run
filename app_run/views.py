@@ -442,8 +442,15 @@ class AnalyticsForCoachAPIView(APIView):
                 if positions.count() >= 2:
                     run_distance = calculate_run_distance(positions)
                     run_time = calculate_run_time_seconds(positions)
-                    total_distance += run_distance
-                    total_time += run_time
+                    
+                    # Проверяем, что забег имеет минимальное время (например, больше 5 секунд)
+                    if run_time >= 5:
+                        total_distance += run_distance
+                        total_time += run_time
+                    else:
+                        print(f'DEBUG_SKIP_RUN_{run.id}: Skipping run with time {run_time} seconds (too short)')
+                else:
+                    print(f'DEBUG_SKIP_RUN_{run.id}: Skipping run with {positions.count()} positions (need >= 2)')
             
             athlete_stats[athlete_id] = {
                 'total_distance': total_distance,
@@ -497,6 +504,30 @@ class AnalyticsForCoachAPIView(APIView):
                 print(f'DEBUG_ATHLETE_{athlete_id}_SPEED: 0.0 (no time)')
         
         print(f'DEBUG: Final speed_avg_user: {speed_avg_user}, speed_avg_value: {speed_avg_value}')
+        
+        # Специальная отладка для проблемного атлета 218
+        if 218 in subscribed_athletes:
+            print(f'DEBUG_SPECIAL_218: Checking athlete 218 details')
+            runs_218 = Run.objects.filter(athlete_id=218, status=Run.Status.FINISHED)
+            print(f'DEBUG_SPECIAL_218_RUNS: {list(runs_218.values("id", "distance", "run_time_seconds", "speed"))}')
+            
+            for run in runs_218:
+                positions = run.position.all().order_by('date_time')
+                print(f'DEBUG_SPECIAL_218_RUN_{run.id}: {positions.count()} positions')
+                if positions.count() >= 2:
+                    run_distance = calculate_run_distance(positions)
+                    run_time = calculate_run_time_seconds(positions)
+                    print(f'DEBUG_SPECIAL_218_RUN_{run.id}_CALC: distance={run_distance}, time={run_time}')
+                    
+                    # Проверим первые и последние позиции
+                    first_pos = positions.first()
+                    last_pos = positions.last()
+                    if first_pos and last_pos:
+                        print(f'DEBUG_SPECIAL_218_RUN_{run.id}_TIME_RANGE: {first_pos.date_time} to {last_pos.date_time}')
+                        time_diff = (last_pos.date_time - first_pos.date_time).total_seconds()
+                        print(f'DEBUG_SPECIAL_218_RUN_{run.id}_TIME_DIFF: {time_diff} seconds')
+                else:
+                    print(f'DEBUG_SPECIAL_218_RUN_{run.id}: Not enough positions ({positions.count()})')
         
         data = speed_avg_value
         print(f'DEBUG_1 {data} {athlete_stats}')
