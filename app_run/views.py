@@ -405,6 +405,7 @@ def calc_mid_speed(athlete_id):
 
     total_distance = 0.0
     total_time = 0
+    runs_count = 0
 
     for run in finished_runs:
         positions = run.position.all().order_by('date_time')
@@ -413,6 +414,7 @@ def calc_mid_speed(athlete_id):
             run_time = calculate_run_time_seconds(positions)
             total_distance += run_distance
             total_time += run_time
+            runs_count += 1
 
     if total_time > 0:
         avg_speed = (total_distance * 1000) / total_time
@@ -421,7 +423,8 @@ def calc_mid_speed(athlete_id):
 
     return {
         'athlete_id': athlete_id,
-        'total_distance': total_distance,
+        'runs_count': runs_count,
+        'total_distance': round(total_distance, 3),
         'total_time': total_time,
         'avg_speed': round(avg_speed, 2)
     }
@@ -462,6 +465,7 @@ class AnalyticsForCoachAPIView(APIView):
 
         athlete_stats = {}
 
+        # Собираем статистику только для атлетов с завершёнными забегами
         for run in finished_runs:
             positions = run.position.all().order_by('date_time')
             if positions.count() >= 2:
@@ -473,8 +477,8 @@ class AnalyticsForCoachAPIView(APIView):
                 athlete_stats[athlete_id]['total_distance'] += run_distance
                 athlete_stats[athlete_id]['total_time'] += run_time
 
-        all_athlete_ids = set(finished_runs.values_list('athlete_id', flat=True))
-        for athlete_id in all_athlete_ids:
+        # Инициализируем статистику для всех подписанных атлетов
+        for athlete_id in subscribed_athletes:
             if athlete_id not in athlete_stats:
                 athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
 
@@ -482,16 +486,20 @@ class AnalyticsForCoachAPIView(APIView):
         speed_avg_value = None
         max_avg_speed = 0.0
 
+        # Ищем атлета с максимальной средней скоростью
         for athlete_id, stats in athlete_stats.items():
             if stats['total_time'] > 0:
                 real_avg_speed = (stats['total_distance'] * 1000) / stats['total_time']
             else:
                 real_avg_speed = 0.0
-            if real_avg_speed > max_avg_speed or speed_avg_user is None:
+            
+            # Если это первый атлет или его скорость больше текущего максимума
+            if speed_avg_user is None or real_avg_speed > max_avg_speed:
                 max_avg_speed = real_avg_speed
                 speed_avg_user = athlete_id
                 speed_avg_value = round(real_avg_speed, 2)
         
+        # Если нет атлетов с забегами, устанавливаем None
         if not athlete_stats:
             speed_avg_user = None
             speed_avg_value = None
@@ -511,6 +519,20 @@ class AnalyticsForCoachAPIView(APIView):
             for athlete_id in subscribed_athletes:
                 data = calc_mid_speed(athlete_id)
                 print(f'DEBUG_ATHLETE_{athlete_id}: {data}')
+                
+            # Специальная отладка для проблемного случая
+            if 183 in subscribed_athletes:
+                print(f'DEBUG_SPECIAL_183: {calc_mid_speed(183)}')
+                # Проверим забеги атлета 183
+                runs_183 = Run.objects.filter(athlete_id=183, status=Run.Status.FINISHED)
+                print(f'DEBUG_RUNS_183: {list(runs_183.values("id", "distance", "run_time_seconds", "speed"))}')
+                for run in runs_183:
+                    positions = run.position.all().order_by('date_time')
+                    print(f'DEBUG_RUN_{run.id}_POSITIONS: {positions.count()} positions')
+                    if positions.count() >= 2:
+                        run_distance = calculate_run_distance(positions)
+                        run_time = calculate_run_time_seconds(positions)
+                        print(f'DEBUG_RUN_{run.id}_CALC: distance={run_distance}, time={run_time}')
 
         analytics = {
             'longest_run_user': longest_run_user,
