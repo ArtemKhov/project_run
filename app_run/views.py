@@ -429,51 +429,22 @@ class AnalyticsForCoachAPIView(APIView):
         total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
         total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
 
-        athlete_stats = {}
+        # Используем ORM для расчёта средней скорости
+        athletes_with_speed = User.objects.filter(
+            id__in=subscribed_athletes
+        ).annotate(
+            avg_speed=Avg('runs__speed', filter=Q(runs__status=Run.Status.FINISHED))
+        ).order_by('-avg_speed')
 
-        # Группируем забеги по атлетам и правильно агрегируем данные
-        for athlete_id in subscribed_athletes:
-            athlete_runs = finished_runs.filter(athlete_id=athlete_id)
-            total_distance = 0.0
-            total_time = 0
-            
-            for run in athlete_runs:
-                positions = run.position.all().order_by('date_time')
-                if positions.count() >= 2:
-                    run_distance = calculate_run_distance(positions)
-                    run_time = calculate_run_time_seconds(positions)
-                    
-                    # Проверяем валидность забега
-                    if run_time > 0:
-                        total_distance += run_distance
-                        total_time += run_time
-            
-            athlete_stats[athlete_id] = {
-                'total_distance': total_distance,
-                'total_time': total_time
-            }
-
+        # Берём атлета с максимальной средней скоростью
         speed_avg_user = None
         speed_avg_value = None
-        max_avg_speed = 0.0
-
-        # Ищем атлета с максимальной средней скоростью
-        for athlete_id, stats in athlete_stats.items():
-            if stats['total_time'] > 0:
-                real_avg_speed = (stats['total_distance'] * 1000) / stats['total_time']
-            else:
-                real_avg_speed = 0.0
-            
-            # Если это первый атлет или его скорость больше текущего максимума
-            if speed_avg_user is None or real_avg_speed > max_avg_speed:
-                max_avg_speed = real_avg_speed
-                speed_avg_user = athlete_id
-                speed_avg_value = round(real_avg_speed, 2)
         
-        # Если нет валидных данных, устанавливаем None
-        if not athlete_stats or all(stats['total_time'] == 0 for stats in athlete_stats.values()):
-            speed_avg_user = None
-            speed_avg_value = None
+        if athletes_with_speed.exists():
+            fastest_athlete = athletes_with_speed.first()
+            if fastest_athlete.avg_speed is not None:
+                speed_avg_user = fastest_athlete.id
+                speed_avg_value = round(fastest_athlete.avg_speed, 2)
 
         analytics = {
             'longest_run_user': longest_run_user,
