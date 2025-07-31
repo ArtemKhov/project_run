@@ -437,12 +437,6 @@ class AnalyticsForCoachAPIView(APIView):
             if positions.count() >= 2:
                 run_distance = calculate_run_distance(positions)
                 run_time = calculate_run_time_seconds(positions)
-                # Фильтрация аномалий:
-                if run_distance < 0.01 or run_time < 5:
-                    continue
-                avg_speed = (run_distance * 1000) / run_time if run_time > 0 else 0.0
-                if avg_speed > 12:
-                    continue
                 athlete_id = run.athlete_id
                 if athlete_id not in athlete_stats:
                     athlete_stats[athlete_id] = {'total_distance': 0.0, 'total_time': 0}
