@@ -429,11 +429,14 @@ class AnalyticsForCoachAPIView(APIView):
         total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
         total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
 
-        # Используем ORM для расчёта средней скорости
+        # Используем ORM для расчёта средней скорости с правильной фильтрацией
         athletes_with_speed = User.objects.filter(
             id__in=subscribed_athletes
         ).annotate(
-            avg_speed=Avg('runs__speed', filter=Q(runs__status=Run.Status.FINISHED))
+            avg_speed=Avg('runs__speed', filter=Q(
+                runs__status=Run.Status.FINISHED,
+                runs__speed__gt=0  # Исключаем забеги с нулевой скоростью
+            ))
         ).order_by('-avg_speed')
 
         # Берём атлета с максимальной средней скоростью
@@ -442,7 +445,7 @@ class AnalyticsForCoachAPIView(APIView):
         
         if athletes_with_speed.exists():
             fastest_athlete = athletes_with_speed.first()
-            if fastest_athlete.avg_speed is not None:
+            if fastest_athlete.avg_speed is not None and fastest_athlete.avg_speed > 0:
                 speed_avg_user = fastest_athlete.id
                 speed_avg_value = round(fastest_athlete.avg_speed, 2)
 
