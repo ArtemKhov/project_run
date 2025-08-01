@@ -308,8 +308,6 @@ class PositionViewSet(viewsets.ModelViewSet):
         calculate_position_speed(position)
         position.save()
 
-
-
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -397,61 +395,96 @@ class RatingCoachAPIView(APIView):
 
 class AnalyticsForCoachAPIView(APIView):
     def get(self, request, coach_id):
-        try:
-            coach = User.objects.get(id=coach_id, is_staff=True)
-        except User.DoesNotExist:
-            return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
+        coach_queryset = Subscribe.objects.filter(coach=coach_id, is_active=True)
 
-        subscribed_athletes = Subscribe.objects.filter(coach_id=coach_id, is_active=True).values_list('athlete_id', flat=True)
+        qs_with_additional_fields = coach_queryset.annotate(
+            max_distance=Max('athlete__runs__distance'),
+            sum_distances=Sum('athlete__runs__distance'),
+            avg_speed=Avg('athlete__runs__speed')
+        ).filter(
+            athlete__runs__status='finished'
+        )
 
-        if not subscribed_athletes:
-            return Response({
-                'longest_run_user': None,
-                'longest_run_value': None,
-                'total_run_user': None,
-                'total_run_value': None,
-                'speed_avg_user': None,
-                'speed_avg_value': None
-            }, status=status.HTTP_200_OK)
-
-        finished_runs = Run.objects.filter(athlete_id__in=subscribed_athletes, status=Run.Status.FINISHED)
-        
         # Самый длинный забег
-        longest_run = finished_runs.order_by('-distance').first()
-        longest_run_user = longest_run.athlete_id if longest_run else None
-        longest_run_value = longest_run.distance if longest_run else None
-        
-        # Общая дистанция по атлетам
-        total_distance_by_athlete = finished_runs.values('athlete_id').annotate(
-            total_distance=Sum('distance')
-        ).order_by('-total_distance').first()
-        
-        total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
-        total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
+        longest_qs = qs_with_additional_fields.order_by('-max_distance').first()
+        longest_run_value = longest_qs.max_distance if longest_qs else None
+        longest_run_user = longest_qs.athlete_id if longest_qs else None
 
-        athletes_with_speed = User.objects.filter(
-            id__in=subscribed_athletes
-        ).annotate(
-            avg_speed=Avg('runs__speed', filter=Q(runs__status=Run.Status.FINISHED))
-        ).order_by('-avg_speed')
+        # Общая дистанция
+        max_total_run_qs = qs_with_additional_fields.order_by('-sum_distances').first()
+        total_run_value = max_total_run_qs.sum_distances if max_total_run_qs else None
+        total_run_user = max_total_run_qs.athlete_id if max_total_run_qs else None
 
-        # Берём атлета с максимальной средней скоростью
-        speed_avg_user = None
-        speed_avg_value = None
+        # Средняя скорость
+        max_avg_speed_qs = qs_with_additional_fields.order_by('-avg_speed').first()
+        speed_avg_value = max_avg_speed_qs.avg_speed if max_avg_speed_qs else None
+        speed_avg_user = max_avg_speed_qs.athlete_id if max_avg_speed_qs else None
 
-        if athletes_with_speed.exists():
-            fastest_athlete = athletes_with_speed.first()
-            if fastest_athlete.avg_speed is not None:
-                speed_avg_user = fastest_athlete.id
-                speed_avg_value = round(fastest_athlete.avg_speed, 2)
-
-        analytics = {
-            'longest_run_user': longest_run_user,
+        return Response({
             'longest_run_value': longest_run_value,
-            'total_run_user': total_run_user,
+            'longest_run_user': longest_run_user,
             'total_run_value': total_run_value,
-            'speed_avg_user': speed_avg_user,
-            'speed_avg_value': speed_avg_value
-        }
+            'total_run_user': total_run_user,
+            'speed_avg_value': speed_avg_value,
+            'speed_avg_user': speed_avg_user
+        })
 
-        return Response(analytics, status=status.HTTP_200_OK)
+    # def get(self, request, coach_id):
+    #     try:
+    #         coach = User.objects.get(id=coach_id, is_staff=True)
+    #     except User.DoesNotExist:
+    #         return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
+    #
+    #     subscribed_athletes = Subscribe.objects.filter(coach_id=coach_id, is_active=True).values_list('athlete_id', flat=True)
+    #
+    #     if not subscribed_athletes:
+    #         return Response({
+    #             'longest_run_user': None,
+    #             'longest_run_value': None,
+    #             'total_run_user': None,
+    #             'total_run_value': None,
+    #             'speed_avg_user': None,
+    #             'speed_avg_value': None
+    #         }, status=status.HTTP_200_OK)
+    #
+    #     finished_runs = Run.objects.filter(athlete_id__in=subscribed_athletes, status=Run.Status.FINISHED)
+    #
+    #     # Самый длинный забег
+    #     longest_run = finished_runs.order_by('-distance').first()
+    #     longest_run_user = longest_run.athlete_id if longest_run else None
+    #     longest_run_value = longest_run.distance if longest_run else None
+    #
+    #     # Общая дистанция по атлетам
+    #     total_distance_by_athlete = finished_runs.values('athlete_id').annotate(
+    #         total_distance=Sum('distance')
+    #     ).order_by('-total_distance').first()
+    #
+    #     total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
+    #     total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
+    #
+    #     athletes_with_speed = User.objects.filter(
+    #         id__in=subscribed_athletes
+    #     ).annotate(
+    #         avg_speed=Avg('runs__speed', filter=Q(runs__status=Run.Status.FINISHED))
+    #     ).order_by('-avg_speed')
+    #
+    #     # Берём атлета с максимальной средней скоростью
+    #     speed_avg_user = None
+    #     speed_avg_value = None
+    #
+    #     if athletes_with_speed.exists():
+    #         fastest_athlete = athletes_with_speed.first()
+    #         if fastest_athlete.avg_speed is not None:
+    #             speed_avg_user = fastest_athlete.id
+    #             speed_avg_value = round(fastest_athlete.avg_speed, 2)
+    #
+    #     analytics = {
+    #         'longest_run_user': longest_run_user,
+    #         'longest_run_value': longest_run_value,
+    #         'total_run_user': total_run_user,
+    #         'total_run_value': total_run_value,
+    #         'speed_avg_user': speed_avg_user,
+    #         'speed_avg_value': speed_avg_value
+    #     }
+    #
+    #     return Response(analytics, status=status.HTTP_200_OK)
