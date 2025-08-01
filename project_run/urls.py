@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework.authtoken import views as drf_auth_views
 
 from app_run.views import company_details, RunViewSet, RunnerViewSet, StartRunAPIView, StopRunAPIView, \
     AthleteInfoAPIView, ChallengeAPIView, PositionViewSet, CollectibleItemListView, upload_file_view, \
@@ -24,5 +25,6 @@ urlpatterns = [
     path('api/subscribe_to_coach/<int:id>/', SubscribeToCoachAPIView.as_view()),
     path('api/rate_coach/<int:coach_id>/', RatingCoachAPIView.as_view()),
     path('api/analytics_for_coach/<int:coach_id>/', AnalyticsForCoachAPIView.as_view()),
+    path('api/token/', drf_auth_views.obtain_auth_token),
     path('', include(router.urls)),
 ]
