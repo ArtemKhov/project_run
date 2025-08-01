@@ -56,15 +56,15 @@ class Challenge(models.Model):
     Содержит название вызова и связанного с ним атлета.
     """
     
-    full_name = models.CharField(max_length=255, verbose_name='Название вызова')
+    full_name = models.CharField(max_length=255, verbose_name='Название челленджа')
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challenge', verbose_name='Атлет')
 
     def __str__(self):
         return f"{self.full_name} - {self.athlete.username}"
 
     class Meta:
-        verbose_name = 'Вызов'
-        verbose_name_plural = 'Вызовы'
+        verbose_name = 'Челлендж'
+        verbose_name_plural = 'Челленджи'
 
 
 class Position(models.Model):
