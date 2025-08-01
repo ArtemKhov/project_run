@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.db.models import Sum, Min, Max, Count, Q, Avg
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from geopy.distance import geodesic
 from rest_framework.decorators import api_view
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.generics import ListAPIView
@@ -296,20 +297,37 @@ class PositionViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        position = serializer.save()
 
-        athlete = position.run.athlete
-        check_and_collect_items(position, athlete)
-
-        calculate_position_distance(position)
-        calculate_position_speed(position)
-        position.save()
-
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    def perform_create(self, serializer):
+        run = serializer.validated_data['run']
+        serializer.save()  # чтобы включить только что создаваемую позицию в QS
+        all_positions = Position.objects.filter(run=run)
+        if all_positions.count() > 1:
+            ordered_positions = all_positions.order_by('-id')
+            last_position = ordered_positions[0]
+            previous_position = ordered_positions[1]
+            previous_distance = previous_position.distance
+            last_distance = geodesic((last_position.latitude, last_position.longitude),
+                                     (previous_position.latitude, previous_position.longitude)).meters
+            time_delta = last_position.date_time - previous_position.date_time
+            speed = last_distance / time_delta.total_seconds()
+            last_position.speed = round(speed, 2)
+            last_position.distance = round(previous_distance + last_distance / 1000, 2)
+            last_position.save()
+    # def create(self, request, *args, **kwargs):
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     position = serializer.save()
+    #
+    #     athlete = position.run.athlete
+    #     check_and_collect_items(position, athlete)
+    #
+    #     calculate_position_distance(position)
+    #     calculate_position_speed(position)
+    #     position.save()
+    #
+    #     headers = self.get_success_headers(serializer.data)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class CollectibleItemListView(ListAPIView):
