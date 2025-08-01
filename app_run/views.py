@@ -142,19 +142,9 @@ class StopRunAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # positions = run.position.all()
-
-        # total_distance = calculate_run_distance(positions)
-        # run_time_seconds = calculate_run_time_seconds(positions)
-        # average_speed = calculate_average_speed(positions)
-
         run.status = Run.Status.FINISHED
-        # run.distance = total_distance
-        # run.run_time_seconds = run_time_seconds
-        # run.speed = average_speed
 
         if Position.objects.filter(run=run_id).exists():
-            # -------------------------------------------
             positions_qs = Position.objects.filter(run=run_id)
             positions_quantity = len(positions_qs)
             distance = 0
@@ -162,15 +152,14 @@ class StopRunAPIView(APIView):
                 distance += geodesic((positions_qs[i].latitude, positions_qs[i].longitude),
                                      (positions_qs[i + 1].latitude, positions_qs[i + 1].longitude)).kilometers
             run.distance = distance
-            # -------------------------------------------
+
             positions_qs_sorted_by_date = positions_qs.order_by('date_time')
             run_time = positions_qs_sorted_by_date[positions_quantity - 1].date_time - positions_qs_sorted_by_date[
                 0].date_time
             run.run_time_seconds = run_time.total_seconds()
-            # -------------------------------------------
+
             average_speed = positions_qs.aggregate(Avg('speed'))
             run.speed = round(average_speed['speed__avg'], 2)
-            print('DEBUG average_speed', average_speed)
 
         run.save()
 
@@ -415,41 +404,6 @@ class RatingCoachAPIView(APIView):
         return Response({'message': f'Атлет {athlete.username} успешно оценил тренера {coach.username} на {rating_int}'}, status=status.HTTP_200_OK)
 
 class AnalyticsForCoachAPIView(APIView):
-    # def get(self, request, coach_id):
-    #     coach_queryset = Subscribe.objects.filter(coach=coach_id, is_active=True)
-    #
-    #     qs_with_additional_fields = coach_queryset.annotate(
-    #         max_distance=Max('athlete__runs__distance'),
-    #         sum_distances=Sum('athlete__runs__distance'),
-    #         avg_speed=Avg('athlete__runs__speed')
-    #     ).filter(
-    #         athlete__runs__status='finished'
-    #     )
-    #
-    #     # Самый длинный забег
-    #     longest_qs = qs_with_additional_fields.order_by('-max_distance').first()
-    #     longest_run_value = longest_qs.max_distance if longest_qs else None
-    #     longest_run_user = longest_qs.athlete_id if longest_qs else None
-    #
-    #     # Общая дистанция
-    #     max_total_run_qs = qs_with_additional_fields.order_by('-sum_distances').first()
-    #     total_run_value = max_total_run_qs.sum_distances if max_total_run_qs else None
-    #     total_run_user = max_total_run_qs.athlete_id if max_total_run_qs else None
-    #
-    #     # Средняя скорость
-    #     max_avg_speed_qs = qs_with_additional_fields.order_by('-avg_speed').first()
-    #     speed_avg_value = max_avg_speed_qs.avg_speed if max_avg_speed_qs else None
-    #     speed_avg_user = max_avg_speed_qs.athlete_id if max_avg_speed_qs else None
-    #
-    #     return Response({
-    #         'longest_run_value': longest_run_value,
-    #         'longest_run_user': longest_run_user,
-    #         'total_run_value': total_run_value,
-    #         'total_run_user': total_run_user,
-    #         'speed_avg_value': speed_avg_value,
-    #         'speed_avg_user': speed_avg_user
-    #     })
-
     def get(self, request, coach_id):
         try:
             coach = User.objects.get(id=coach_id, is_staff=True)
