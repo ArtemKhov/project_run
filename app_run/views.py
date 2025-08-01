@@ -3,28 +3,38 @@ from io import BytesIO
 import openpyxl
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.db.models import Sum, Min, Max, Count, Q, Avg
+from django.db.models import Avg, Count, Q, Sum
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from geopy.distance import geodesic
+from rest_framework import status, viewsets
 from rest_framework.decorators import api_view
-from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework import viewsets, status
 from rest_framework.views import APIView
 
-from .models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe, Rating
-from .serializers import RunSerializer, RunnerSerializer, AthleteInfoSerializer, ChallengeSerializer, \
-    PositionSerializer, CollectibleItemSerializer, CoachDetailSerializer, AthleteDetailSerializer, \
-    UserChallengeSerializer
-from .services import check_and_collect_items, calculate_run_time_seconds, calculate_run_distance, \
-    calculate_position_distance, calculate_position_speed, calculate_average_speed, ChallengeAssigner
+from .models import AthleteInfo, Challenge, CollectibleItem, Position, Rating, Run, Subscribe
+from .serializers import (
+    AthleteDetailSerializer, AthleteInfoSerializer, ChallengeSerializer,
+    CoachDetailSerializer, CollectibleItemSerializer, PositionSerializer,
+    RunSerializer, RunnerSerializer, UserChallengeSerializer
+)
+from .services import (
+    ChallengeAssigner, calculate_position_distance, calculate_position_speed,
+    check_and_collect_items
+)
 
 
 @api_view(['GET'])
 def company_details(request):
+    """
+    Получение информации о компании.
+    
+    Возвращает название компании, слоган и контактную информацию
+    из настроек Django.
+    """
     details = {
         'company_name': settings.COMPANY_NAME,
         'slogan': settings.SLOGAN,
@@ -35,6 +45,12 @@ def company_details(request):
 
 @api_view(['POST'])
 def upload_file_view(request):
+    """
+    Загрузка и обработка Excel файла с коллекционными предметами.
+    
+    Принимает Excel файл (.xlsx) с данными о коллекционных предметах
+    и создает записи в базе данных. Возвращает список невалидных строк.
+    """
     file = request.FILES.get('file')
     if not file:
         return Response({"error": "Файл не был передан"}, status=status.HTTP_400_BAD_REQUEST)
@@ -50,12 +66,14 @@ def upload_file_view(request):
         valid_items = []
         invalid_rows = []
 
+        # Обработка каждой строки Excel файла
         for row_num, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True), start=2):
             if not any(cell is not None for cell in row):
                 continue
 
             try:
                 row_list = list(row)
+                # Убираем точку с запятой из поля picture если она есть
                 if len(row_list) > 5 and isinstance(row_list[5], str):
                     row_list[5] = row_list[5].rstrip(';')
 
@@ -78,8 +96,7 @@ def upload_file_view(request):
             else:
                 invalid_rows.append(list(row))
 
-
-        created_count = 0
+        # Сохранение валидных записей
         for serializer in valid_items:
             try:
                 serializer.save()
@@ -92,17 +109,26 @@ def upload_file_view(request):
         return Response({"error": f"Произошла ошибка во время обработки файла: {str(e)}"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class RunsPagination(PageNumberPagination):
+    """Пагинация для списка забегов."""
     page_size_query_param = 'size'
     max_page_size = 50
 
 
 class RunnersPagination(PageNumberPagination):
+    """Пагинация для списка бегунов."""
     page_size_query_param = 'size'
     max_page_size = 50
 
 
 class RunViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления забегами.
+    
+    Предоставляет CRUD операции для забегов с фильтрацией по статусу и атлету,
+    а также сортировкой по дате создания.
+    """
     queryset = Run.objects.select_related('athlete').all()
     serializer_class = RunSerializer
     pagination_class = RunsPagination
@@ -112,6 +138,12 @@ class RunViewSet(viewsets.ModelViewSet):
 
 
 class StartRunAPIView(APIView):
+    """
+    API для начала забега.
+    
+    Изменяет статус забега на 'в процессе' если он еще не начат.
+    """
+    
     def post(self, request, run_id):
         run = get_object_or_404(Run, id=run_id)
 
@@ -127,6 +159,13 @@ class StartRunAPIView(APIView):
 
 
 class StopRunAPIView(APIView):
+    """
+    API для завершения забега.
+    
+    Завершает забег, рассчитывает метрики (дистанция, время, скорость)
+    и назначает челленджи атлету.
+    """
+    
     def post(self, request, run_id):
         run = get_object_or_404(Run, id=run_id)
 
@@ -144,25 +183,30 @@ class StopRunAPIView(APIView):
 
         run.status = Run.Status.FINISHED
 
+        # Расчет метрик забега если есть позиции
         if Position.objects.filter(run=run_id).exists():
             positions_qs = Position.objects.filter(run=run_id)
             positions_quantity = len(positions_qs)
+            
+            # Расчет общей дистанции
             distance = 0
             for i in range(positions_quantity - 1):
                 distance += geodesic((positions_qs[i].latitude, positions_qs[i].longitude),
                                      (positions_qs[i + 1].latitude, positions_qs[i + 1].longitude)).kilometers
             run.distance = distance
 
+            # Расчет времени забега
             positions_qs_sorted_by_date = positions_qs.order_by('date_time')
-            run_time = positions_qs_sorted_by_date[positions_quantity - 1].date_time - positions_qs_sorted_by_date[
-                0].date_time
+            run_time = positions_qs_sorted_by_date[positions_quantity - 1].date_time - positions_qs_sorted_by_date[0].date_time
             run.run_time_seconds = run_time.total_seconds()
 
+            # Расчет средней скорости
             average_speed = positions_qs.aggregate(Avg('speed'))
             run.speed = round(average_speed['speed__avg'], 2)
 
         run.save()
 
+        # Назначение вызовов атлету
         finished_runs_count = Run.objects.filter(athlete=run.athlete, status=Run.Status.FINISHED).count()
         total_km = Run.objects.filter(athlete=run.athlete, status=Run.Status.FINISHED).aggregate(total_distance=Sum('distance'))['total_distance'] or 0
 
@@ -177,6 +221,12 @@ class StopRunAPIView(APIView):
 
 
 class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet для просмотра информации о бегунах.
+    
+    Предоставляет информацию о пользователях с возможностью фильтрации
+    по типу (атлет/тренер) и дополнительными аннотациями.
+    """
     queryset = User.objects.filter(is_superuser=False)
     serializer_class = RunnerSerializer
     pagination_class = RunnersPagination
@@ -188,11 +238,13 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
         qs = self.queryset
         user_type = self.request.query_params.get('type', None)
 
+        # Фильтрация по типу пользователя
         if user_type == 'coach':
             qs = qs.filter(is_staff=True)
         elif user_type == 'athlete':
             qs = qs.filter(is_staff=False)
 
+        # Дополнительные аннотации для детального просмотра
         if self.action == 'retrieve':
             qs = qs.prefetch_related('collectible_items', 'athlete_subscriptions__coach', 'coach_subscribers')
             qs = qs.annotate(avg_rating=Avg('coach_rating__rating'))
@@ -221,7 +273,15 @@ class RunnerViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class AthleteInfoAPIView(APIView):
+    """
+    API для управления информацией об атлетах.
+    
+    Позволяет получать и обновлять дополнительную информацию
+    об атлетах (цели, вес).
+    """
+    
     def get(self, request, user_id):
+        """Получение информации об атлете."""
         user = get_object_or_404(User, pk=user_id)
         athlete_info, created = AthleteInfo.objects.select_related('user').get_or_create(
             user=user,
@@ -234,9 +294,12 @@ class AthleteInfoAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, user_id):
+        """Обновление информации об атлете."""
         user = get_object_or_404(User, pk=user_id)
         weight = request.data.get('weight')
         goals = request.data.get('goals', '')
+        
+        # Валидация веса
         if weight is not None:
             try:
                 weight = int(weight)
@@ -259,6 +322,11 @@ class AthleteInfoAPIView(APIView):
 
 
 class ChallengeAPIView(ListAPIView):
+    """
+    API для получения списка вызовов.
+    
+    Поддерживает фильтрацию по атлету через query параметр.
+    """
     serializer_class = ChallengeSerializer
 
     def get_queryset(self):
@@ -272,9 +340,17 @@ class ChallengeAPIView(ListAPIView):
 
 
 class ChallengeSummaryAPIView(APIView):
+    """
+    API для получения сводки по челленджам.
+    
+    Группирует челленджи по названию и возвращает список атлетов
+    для каждого челленджа.
+    """
+    
     def get(self, request):
         challenges = Challenge.objects.select_related('athlete').all()
 
+        # Группировка челленджа по названию
         challenge_map = {}
         for ch in challenges:
             name = ch.full_name
@@ -282,6 +358,7 @@ class ChallengeSummaryAPIView(APIView):
                 challenge_map[name] = []
             challenge_map[name].append(ch.athlete)
 
+        # Формирование результата
         result = []
         for name, athletes in challenge_map.items():
             athletes_data = UserChallengeSerializer(athletes, many=True).data
@@ -293,6 +370,12 @@ class ChallengeSummaryAPIView(APIView):
 
 
 class PositionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для управления GPS позициями.
+    
+    Предоставляет CRUD операции для позиций с автоматическим
+    расчетом дистанции и скорости при создании.
+    """
     queryset = Position.objects.all()
     serializer_class = PositionSerializer
 
@@ -305,15 +388,17 @@ class PositionViewSet(viewsets.ModelViewSet):
 
         return qs
 
-
     def create(self, request, *args, **kwargs):
+        """Создание новой позиции с автоматическими расчетами."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         position = serializer.save()
 
+        # Проверка и сбор коллекционных предметов
         athlete = position.run.athlete
         check_and_collect_items(position, athlete)
 
+        # Автоматический расчет дистанции и скорости
         calculate_position_distance(position)
         calculate_position_speed(position)
         position.save()
@@ -323,41 +408,58 @@ class PositionViewSet(viewsets.ModelViewSet):
 
 
 class CollectibleItemListView(ListAPIView):
+    """
+    API для получения списка коллекционных предметов.
+    
+    Возвращает все доступные коллекционные предметы.
+    """
     queryset = CollectibleItem.objects.all()
     serializer_class = CollectibleItemSerializer
 
 
 class SubscribeToCoachAPIView(APIView):
+    """
+    API для подписки атлета на тренера.
+    
+    Позволяет атлетам подписываться на тренеров для получения
+    рекомендаций и аналитики.
+    """
+    
     def post(self, request, id):
+        # Проверка существования тренера
         try:
             coach = User.objects.get(id=id)
         except User.DoesNotExist:
             return Response(
                 {'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
-        
 
+        # Проверка что пользователь является тренером
         if not coach.is_staff:
             return Response(
                 {'error': 'Можно подписываться только на тренеров'}, status=status.HTTP_400_BAD_REQUEST)
-        
 
+        # Получение ID атлета из запроса
         athlete_id = request.data.get('athlete')
         if not athlete_id:
             return Response(
                 {'error': 'ID атлета обязателен'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Проверка существования атлета
         try:
             athlete = User.objects.get(id=athlete_id)
         except User.DoesNotExist:
             return Response(
                 {'error': 'Атлет не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Проверка что пользователь является атлетом
         if athlete.is_staff:
             return Response({'error': 'Подписываться могут только атлеты'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Проверка существования подписки
         if Subscribe.objects.filter(athlete=athlete, coach=coach).exists():
             return Response({'error': 'Подписка уже существует'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Создание подписки
         Subscribe.objects.create(athlete=athlete, coach=coach)
         
         return Response(
@@ -367,26 +469,34 @@ class SubscribeToCoachAPIView(APIView):
 
 
 class RatingCoachAPIView(APIView):
+    """
+    API для оценки тренеров атлетами.
+    
+    Позволяет атлетам оценивать тренеров по шкале от 1 до 5
+    при условии активной подписки на тренера.
+    """
+    
     def post(self, request, coach_id):
         athlete_id = request.data.get('athlete')
         rating_value = request.data.get('rating')
 
-
+        # Проверка существования тренера
         try:
             coach = User.objects.get(id=coach_id, is_staff=True)
         except User.DoesNotExist:
             return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Проверка существования атлета
         try:
             athlete = User.objects.get(id=athlete_id, is_staff=False)
         except User.DoesNotExist:
             return Response({'error': 'Атлет не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
-
+        # Проверка активной подписки
         if not Subscribe.objects.filter(athlete=athlete, coach=coach, is_active=True).exists():
             return Response({'error': 'Атлет должен быть подписан на тренера, чтобы оценить его'}, status=status.HTTP_400_BAD_REQUEST)
 
-
+        # Валидация оценки
         try:
             rating_int = int(rating_value)
         except (TypeError, ValueError):
@@ -394,7 +504,7 @@ class RatingCoachAPIView(APIView):
         if rating_int < 1 or rating_int > 5:
             return Response({'error': 'Оценка должна быть от 1 до 5'}, status=status.HTTP_400_BAD_REQUEST)
 
-
+        # Создание или обновление оценки
         obj, created = Rating.objects.update_or_create(
             athlete=athlete,
             coach=coach,
@@ -403,13 +513,25 @@ class RatingCoachAPIView(APIView):
 
         return Response({'message': f'Атлет {athlete.username} успешно оценил тренера {coach.username} на {rating_int}'}, status=status.HTTP_200_OK)
 
+
 class AnalyticsForCoachAPIView(APIView):
+    """
+    API для получения аналитики тренера по подписанным атлетам.
+    
+    Возвращает статистику по забегам подписанных атлетов:
+    - Самый длинный забег
+    - Общая дистанция по атлетам
+    - Средняя скорость
+    """
+    
     def get(self, request, coach_id):
+        # Проверка существования тренера
         try:
             coach = User.objects.get(id=coach_id, is_staff=True)
         except User.DoesNotExist:
             return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Получение подписанных атлетов
         subscribed_athletes = Subscribe.objects.filter(coach_id=coach_id, is_active=True).values_list('athlete_id', flat=True)
 
         if not subscribed_athletes:
@@ -424,12 +546,12 @@ class AnalyticsForCoachAPIView(APIView):
 
         finished_runs = Run.objects.filter(athlete_id__in=subscribed_athletes, status=Run.Status.FINISHED)
 
-        # Самый длинный забег
+        # Поиск самого длинного забега
         longest_run = finished_runs.order_by('-distance').first()
         longest_run_user = longest_run.athlete_id if longest_run else None
         longest_run_value = longest_run.distance if longest_run else None
 
-        # Общая дистанция по атлетам
+        # Поиск атлета с наибольшей общей дистанцией
         total_distance_by_athlete = finished_runs.values('athlete_id').annotate(
             total_distance=Sum('distance')
         ).order_by('-total_distance').first()
@@ -437,13 +559,13 @@ class AnalyticsForCoachAPIView(APIView):
         total_run_user = total_distance_by_athlete['athlete_id'] if total_distance_by_athlete else None
         total_run_value = total_distance_by_athlete['total_distance'] if total_distance_by_athlete else None
 
+        # Поиск атлета с максимальной средней скоростью
         athletes_with_speed = User.objects.filter(
             id__in=subscribed_athletes
         ).annotate(
             avg_speed=Avg('runs__speed', filter=Q(runs__status=Run.Status.FINISHED))
         ).order_by('-avg_speed')
 
-        # Берём атлета с максимальной средней скоростью
         speed_avg_user = None
         speed_avg_value = None
 
