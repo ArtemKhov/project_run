@@ -177,7 +177,7 @@ class StopRunAPIView(APIView):
         finished_runs_count = Run.objects.filter(athlete=run.athlete, status=Run.Status.FINISHED).count()
         total_km = Run.objects.filter(athlete=run.athlete, status=Run.Status.FINISHED).aggregate(total_distance=Sum('distance'))['total_distance'] or 0
 
-        assigner = ChallengeAssigner(run, finished_runs_count, total_km, total_distance, run_time_seconds)
+        assigner = ChallengeAssigner(run, finished_runs_count, total_km, run.distance, run.run_time_seconds)
         assigner.assign()
 
         return Response({'status': 'Забег закончен',
