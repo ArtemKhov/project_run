@@ -144,11 +144,12 @@ class StopRunAPIView(APIView):
 
         positions = run.position.all()
 
+
+
+        run.status = Run.Status.FINISHED
         total_distance = calculate_run_distance(positions)
         run_time_seconds = calculate_run_time_seconds(positions)
         average_speed = calculate_average_speed(positions)
-
-        run.status = Run.Status.FINISHED
         run.distance = total_distance
         run.run_time_seconds = run_time_seconds
         run.speed = average_speed
