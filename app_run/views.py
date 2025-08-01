@@ -142,17 +142,35 @@ class StopRunAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        positions = run.position.all()
+        # positions = run.position.all()
 
-
+        # total_distance = calculate_run_distance(positions)
+        # run_time_seconds = calculate_run_time_seconds(positions)
+        # average_speed = calculate_average_speed(positions)
 
         run.status = Run.Status.FINISHED
-        total_distance = calculate_run_distance(positions)
-        run_time_seconds = calculate_run_time_seconds(positions)
-        average_speed = calculate_average_speed(positions)
-        run.distance = total_distance
-        run.run_time_seconds = run_time_seconds
-        run.speed = average_speed
+        # run.distance = total_distance
+        # run.run_time_seconds = run_time_seconds
+        # run.speed = average_speed
+
+        if Position.objects.filter(run=run_id).exists():
+            # -------------------------------------------
+            positions_qs = Position.objects.filter(run=run_id)
+            positions_quantity = len(positions_qs)
+            distance = 0
+            for i in range(positions_quantity - 1):
+                distance += geodesic((positions_qs[i].latitude, positions_qs[i].longitude),
+                                     (positions_qs[i + 1].latitude, positions_qs[i + 1].longitude)).kilometers
+            run.distance = distance
+            # -------------------------------------------
+            positions_qs_sorted_by_date = positions_qs.order_by('date_time')
+            run_time = positions_qs_sorted_by_date[positions_quantity - 1].date_time - positions_qs_sorted_by_date[
+                0].date_time
+            run.run_time_seconds = run_time.total_seconds()
+            # -------------------------------------------
+            average_speed = positions_qs.aggregate(Avg('speed'))
+            run.speed = round(average_speed['speed__avg'], 2)
+            print('DEBUG average_speed', average_speed)
 
         run.save()
 
