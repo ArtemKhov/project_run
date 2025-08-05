@@ -110,7 +110,7 @@ class CollectibleItem(models.Model):
         verbose_name_plural = 'Коллекционные предметы'
 
 
-class Subscribe(models.Model):
+class Subscription(models.Model):
     """
     Модель для хранения подписок атлетов на тренеров.
     Позволяет атлетам подписываться на тренеров для получения рекомендаций.

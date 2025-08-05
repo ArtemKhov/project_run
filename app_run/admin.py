@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from app_run.models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscribe, Rating
+from app_run.models import Run, AthleteInfo, Challenge, Position, CollectibleItem, Subscription, Rating
 
 
 @admin.register(Run)
@@ -78,7 +78,7 @@ class CollectibleItemAdmin(admin.ModelAdmin):
     filter_horizontal = ['users']
 
 
-@admin.register(Subscribe)
+@admin.register(Subscription)
 class SubscribeAdmin(admin.ModelAdmin):
     """
     Административная панель для управления подписками атлетов на тренеров.

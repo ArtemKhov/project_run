@@ -15,7 +15,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AthleteInfo, Challenge, CollectibleItem, Position, Rating, Run, Subscribe
+from .models import AthleteInfo, Challenge, CollectibleItem, Position, Rating, Run, Subscription
 from .serializers import (
     AthleteDetailSerializer, AthleteInfoSerializer, ChallengeSerializer,
     CoachDetailSerializer, CollectibleItemSerializer, PositionSerializer,
@@ -456,11 +456,11 @@ class SubscribeToCoachAPIView(APIView):
             return Response({'error': 'Подписываться могут только атлеты'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Проверка существования подписки
-        if Subscribe.objects.filter(athlete=athlete, coach=coach).exists():
+        if Subscription.objects.filter(athlete=athlete, coach=coach).exists():
             return Response({'error': 'Подписка уже существует'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Создание подписки
-        Subscribe.objects.create(athlete=athlete, coach=coach)
+        Subscription.objects.create(athlete=athlete, coach=coach)
         
         return Response(
             {'message': f'Атлет {athlete.username} успешно подписался на тренера {coach.username}'}, 
@@ -493,7 +493,7 @@ class RatingCoachAPIView(APIView):
             return Response({'error': 'Атлет не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Проверка активной подписки
-        if not Subscribe.objects.filter(athlete=athlete, coach=coach, is_active=True).exists():
+        if not Subscription.objects.filter(athlete=athlete, coach=coach, is_active=True).exists():
             return Response({'error': 'Атлет должен быть подписан на тренера, чтобы оценить его'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Валидация оценки
@@ -532,7 +532,7 @@ class AnalyticsForCoachAPIView(APIView):
             return Response({'error': 'Тренер не найден'}, status=status.HTTP_404_NOT_FOUND)
 
         # Получение подписанных атлетов
-        subscribed_athletes = Subscribe.objects.filter(coach_id=coach_id, is_active=True).values_list('athlete_id', flat=True)
+        subscribed_athletes = Subscription.objects.filter(coach_id=coach_id, is_active=True).values_list('athlete_id', flat=True)
 
         if not subscribed_athletes:
             return Response({
