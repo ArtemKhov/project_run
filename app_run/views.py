@@ -107,7 +107,7 @@ def upload_file_view(request):
 
     except Exception as e:
         return Response({"error": f"Произошла ошибка во время обработки файла: {str(e)}"},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 class RunsPagination(PageNumberPagination):
