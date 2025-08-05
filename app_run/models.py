@@ -24,9 +24,6 @@ class Run(models.Model):
     run_time_seconds = models.IntegerField(default=0, verbose_name='Время забега (секунды)')
     speed = models.FloatField(default=0.0, verbose_name='Средняя скорость (км/ч)')
 
-    def __str__(self):
-        return f"Забег {self.id} - {self.athlete.username} ({self.get_status_display()})"
-
     class Meta:
         verbose_name = 'Забег'
         verbose_name_plural = 'Забеги'
@@ -41,9 +38,6 @@ class AthleteInfo(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='athlete_info', verbose_name='Пользователь')
     goals = models.TextField(blank=True, default='', verbose_name='Цели')
     weight = models.IntegerField(blank=True, null=True, verbose_name='Вес (кг)')
-
-    def __str__(self):
-        return f"Информация о {self.user.username}"
 
     class Meta:
         verbose_name = 'Информация об атлете'
@@ -60,7 +54,7 @@ class Challenge(models.Model):
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name='challenge', verbose_name='Атлет')
 
     def __str__(self):
-        return f"{self.full_name} - {self.athlete.username}"
+        return f"{self.full_name}"
 
     class Meta:
         verbose_name = 'Челлендж'
@@ -81,7 +75,7 @@ class Position(models.Model):
     distance = models.FloatField(default=0.0, verbose_name='Дистанция (км)')
 
     def __str__(self):
-        return f"Позиция {self.id} - {self.run.athlete.username} ({self.date_time})"
+        return f"Позиция {self.id}"
 
     class Meta:
         verbose_name = 'Позиция'
@@ -121,9 +115,6 @@ class Subscription(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата подписки')
     is_active = models.BooleanField(default=True, verbose_name='Активна')
 
-    def __str__(self):
-        return f"{self.athlete.username} → {self.coach.username}"
-
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
@@ -143,9 +134,6 @@ class Rating(models.Model):
     def clean(self):
         if self.rating is not None and (self.rating < 1 or self.rating > 5):
             raise ValidationError({'rating': 'Оценка должна быть от 1 до 5.'})
-
-    def __str__(self):
-        return f"{self.athlete.username} → {self.coach.username} ({self.rating}/5)"
 
     class Meta:
         verbose_name = 'Рейтинг'
